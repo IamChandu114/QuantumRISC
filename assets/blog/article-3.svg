@@ -1,0 +1,18 @@
+﻿<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 675'>
+  <defs>
+    <linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>
+      <stop offset='0%' stop-color='#05070b'/><stop offset='100%' stop-color='#101827'/>
+    </linearGradient>
+    <pattern id='p' width='36' height='36' patternUnits='userSpaceOnUse'><path d='M 36 0 L 0 0 0 36' fill='none' stroke='rgba(255,255,255,0.04)' stroke-width='1'/></pattern>
+  </defs>
+  <rect width='1200' height='675' fill='url(#g)'/>
+  <rect width='1200' height='675' fill='url(#p)'/>
+  <rect x='76' y='84' width='1048' height='507' rx='28' fill='rgba(255,255,255,0.03)' stroke='rgba(255,255,255,0.08)'/>
+  <rect x='112' y='120' width='210' height='36' rx='12' fill='#c87941' opacity='0.18'/>
+  <text x='217' y='145' text-anchor='middle' fill='#c87941' font-family='JetBrains Mono,Consolas,monospace' font-size='16' font-weight='700'>MEDIUM ARTICLE</text>
+  <text x='112' y='240' fill='#ffffff' font-family='Inter,Segoe UI,sans-serif' font-size='36' font-weight='700'>Verilog Waveforms to Dashboards</text>
+  <text x='112' y='292' fill='#9fb3c8' font-family='Inter,Segoe UI,sans-serif' font-size='20'>Building a cycle-accurate RTL debugging platform</text>
+  <rect x='112' y='364' width='460' height='10' rx='5' fill='#c87941' opacity='0.55'/>
+  <rect x='112' y='392' width='390' height='10' rx='5' fill='rgba(255,255,255,0.18)'/>
+  <rect x='112' y='420' width='340' height='10' rx='5' fill='rgba(255,255,255,0.12)'/>
+</svg>

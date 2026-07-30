@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: QuantumRISC Documentation
+    url: http://127.0.0.1:8000/docs
+    about: Official documentation portal for the project.

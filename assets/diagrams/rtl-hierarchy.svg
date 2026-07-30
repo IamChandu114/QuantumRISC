@@ -1,0 +1,35 @@
+﻿<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1280 720'>
+  <defs>
+    <linearGradient id='bg' x1='0' y1='0' x2='1' y2='1'>
+      <stop offset='0%' stop-color='#05070b'/>
+      <stop offset='100%' stop-color='#0b1220'/>
+    </linearGradient>
+    <linearGradient id='cyan' x1='0' y1='0' x2='1' y2='0'>
+      <stop offset='0%' stop-color='#00d4ff'/>
+      <stop offset='100%' stop-color='#00ff88'/>
+    </linearGradient>
+    <filter id='glow'><feGaussianBlur stdDeviation='6' result='b'/><feMerge><feMergeNode in='b'/><feMergeNode in='SourceGraphic'/></feMerge></filter>
+    <pattern id='grid' width='40' height='40' patternUnits='userSpaceOnUse'><path d='M 40 0 L 0 0 0 40' fill='none' stroke='rgba(255,255,255,0.04)' stroke-width='1'/></pattern>
+  </defs>
+  <rect width='1280' height='720' fill='url(#bg)'/>
+  <rect width='1280' height='720' fill='url(#grid)'/>
+  <circle cx='960' cy='140' r='220' fill='rgba(0,212,255,0.08)' filter='url(#glow)'/>
+  <circle cx='280' cy='560' r='260' fill='rgba(0,255,136,0.04)' filter='url(#glow)'/>
+  <text x='72' y='96' fill='#00d4ff' font-family='Inter,Segoe UI,sans-serif' font-size='18' letter-spacing='4'>QUANTUMRISC / RELEASE ARTIFACT</text>
+  <text x='72' y='156' fill='#ffffff' font-family='Inter,Segoe UI,sans-serif' font-size='52' font-weight='700'>RTL Module Hierarchy</text>
+  <text x='72' y='202' fill='#98a2b3' font-family='Inter,Segoe UI,sans-serif' font-size='24'>CPU top, pipeline blocks, memory, and verification testbenches.</text>
+    <g font-family='Inter,Segoe UI,sans-serif' font-size='16'>
+    <rect x='495' y='116' width='290' height='68' rx='14' fill='rgba(0,212,255,0.08)' stroke='rgba(0,212,255,0.5)'/>
+    <text x='640' y='155' text-anchor='middle' fill='#00d4ff' font-size='22' font-weight='700'>cpu_top / pipeline_cpu_complete</text>
+    <rect x='155' y='272' width='180' height='68' rx='14' fill='rgba(0,255,136,0.08)' stroke='rgba(0,255,136,0.45)'/><text x='245' y='312' text-anchor='middle' fill='#00ff88'>Pipeline</text>
+    <rect x='365' y='272' width='180' height='68' rx='14' fill='rgba(255,153,0,0.08)' stroke='rgba(255,153,0,0.45)'/><text x='455' y='312' text-anchor='middle' fill='#ff9900'>Memory</text>
+    <rect x='575' y='272' width='180' height='68' rx='14' fill='rgba(255,51,102,0.08)' stroke='rgba(255,51,102,0.45)'/><text x='665' y='312' text-anchor='middle' fill='#ff3366'>Hazard / Forward</text>
+    <rect x='785' y='272' width='180' height='68' rx='14' fill='rgba(200,121,65,0.08)' stroke='rgba(200,121,65,0.45)'/><text x='875' y='312' text-anchor='middle' fill='#c87941'>Verification TBs</text>
+    <path d='M640 184 L640 228 L245 272' stroke='url(#cyan)' stroke-width='3' fill='none'/>
+    <path d='M640 184 L640 228 L455 272' stroke='url(#cyan)' stroke-width='3' fill='none'/>
+    <path d='M640 184 L640 228 L665 272' stroke='url(#cyan)' stroke-width='3' fill='none'/>
+    <path d='M640 184 L640 228 L875 272' stroke='url(#cyan)' stroke-width='3' fill='none'/>
+  </g>
+  <rect x='72' y='620' width='1136' height='1' fill='rgba(255,255,255,0.08)'/>
+  <text x='72' y='662' fill='#5f6b7a' font-family='JetBrains Mono,Consolas,monospace' font-size='14'>QuantumRISC · production release media</text>
+</svg>

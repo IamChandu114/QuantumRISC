@@ -1,0 +1,12 @@
+risc-v
+computer-architecture
+verilog
+systemverilog
+cpu
+processor
+rtl
+verification
+fastapi
+websockets
+fpga
+engineering
