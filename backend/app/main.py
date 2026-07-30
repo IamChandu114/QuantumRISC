@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi import FastAPI
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from backend.app.api.routes import build_router
@@ -11,7 +11,13 @@ from backend.app.sessions.manager import SessionManager
 
 settings = get_settings()
 manager = SessionManager(settings)
-app = FastAPI(title="QuantumRISC Backend", version="1.0.0")
+app = FastAPI(
+    title="QuantumRISC Backend",
+    version="1.0.0",
+    docs_url=None,
+    redoc_url=None,
+    openapi_url="/openapi.json",
+)
 app.include_router(build_router(manager))
 
 website_dist = settings.frontend_root / "website" / "dist"
@@ -40,8 +46,18 @@ async def studio():
 
 
 @app.get("/docs")
-@app.get("/docs/{path:path}")
+async def docs_redirect():
+    return RedirectResponse(url="/docs/", status_code=307)
+
+
 @app.get("/documentation")
+async def documentation_redirect():
+    return RedirectResponse(url="/documentation/", status_code=307)
+
+
+@app.get("/docs/")
+@app.get("/docs/{path:path}")
+@app.get("/documentation/")
 @app.get("/documentation/{path:path}")
 async def docs(path: str = ""):
     index = docs_dist / "index.html"

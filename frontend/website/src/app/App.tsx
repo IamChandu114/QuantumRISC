@@ -13,6 +13,12 @@ import {
   Settings, ExternalLink, Radio, Lock, Unlock, Boxes,
 } from "lucide-react";
 
+const DOCS_PORTAL_URL = (() => {
+  const configured = import.meta.env.VITE_QRISC_DOCS_URL?.trim();
+  if (configured) return configured.replace(/\/$/, "");
+  return "http://127.0.0.1:8000/docs/";
+})();
+
 // ─── CSS ANIMATIONS ─────────────────────────────────────────
 const CSS = `
   :root { font-family: 'Inter', system-ui, sans-serif; }
@@ -2713,7 +2719,7 @@ function FooterSection() {
               <a href="https://github.com" target="_blank" rel="noreferrer" className="btn-outline px-4 py-2 rounded text-xs flex items-center gap-2">
                 <Github size={12}/> Source Code
               </a>
-              <a href="/docs" target="_blank" rel="noreferrer" className="btn-ghost px-4 py-2 rounded text-xs flex items-center gap-2">
+              <a href={DOCS_PORTAL_URL} target="_blank" rel="noreferrer" className="btn-ghost px-4 py-2 rounded text-xs flex items-center gap-2">
                 <ExternalLink size={12}/> Documentation
               </a>
             </div>
