@@ -1,0 +1,10 @@
+{
+  "rewrites": [
+    { "source": "/studio", "destination": "/studio/index.html" },
+    { "source": "/studio/:path*", "destination": "/studio/index.html" },
+    { "source": "/docs", "destination": "/docs/index.html" },
+    { "source": "/docs/:path*", "destination": "/docs/index.html" },
+    { "source": "/documentation", "destination": "/docs/index.html" },
+    { "source": "/documentation/:path*", "destination": "/docs/index.html" }
+  ]
+}
