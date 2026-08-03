@@ -27,5 +27,6 @@ ENV QUANTUMRISC_VVP=vvp
 
 EXPOSE 8000
 
-# Run uvicorn server using app.main when backend is the working directory
-CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "$PORT"]
+# Run uvicorn server using app.main when backend is the working directory.
+# Use shell form (sh -c) so $PORT environment variable is expanded at runtime.
+CMD ["sh", "-c", "python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
