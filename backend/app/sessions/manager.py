@@ -21,6 +21,7 @@ from backend.app.sim.vcd_parser import VCDParser
 from backend.app.trackers.memory_tracker import MemoryTracker
 from backend.app.trackers.pipeline_tracker import PipelineTracker
 from backend.app.trackers.register_tracker import RegisterTracker
+from backend.app.sessions.db import init_db, save_session, load_sessions
 
 
 @dataclass
@@ -57,7 +58,11 @@ class SessionManager:
         self.hazard_analyzer = HazardAnalyzer()
         self.forwarding_analyzer = ForwardingAnalyzer()
         self.metrics_engine = MetricsEngine()
-        self.sessions: dict[str, SessionRecord] = {}
+        
+        # SQLite persistence initialization
+        init_db(settings.sqlite_db_path)
+        self.sessions: dict[str, SessionRecord] = load_sessions(settings.sqlite_db_path)
+        
         self.subscribers: dict[str, list[asyncio.Queue]] = {}
         self.playback_tasks: dict[str, asyncio.Task] = {}
 
@@ -71,6 +76,7 @@ class SessionManager:
         record.workdir.mkdir(parents=True, exist_ok=True)
         self.sessions[session_id] = record
         self.subscribers[session_id] = []
+        save_session(self.settings.sqlite_db_path, record)
         return record
 
     def get(self, session_id: str) -> SessionRecord:
@@ -134,6 +140,7 @@ class SessionManager:
         session.updated_at = datetime.now(timezone.utc)
         await self.broadcast(session_id, {"type": "session.paused", "payload": {"session_id": session_id, "cursor": session.cursor}})
         await self._broadcast_state(session_id)
+        save_session(self.settings.sqlite_db_path, session)
         return self.snapshot(session_id).model_dump()
 
     async def resume(self, session_id: str) -> dict[str, Any]:
@@ -147,6 +154,7 @@ class SessionManager:
         session.updated_at = datetime.now(timezone.utc)
         await self.broadcast(session_id, {"type": "session.resumed", "payload": {"session_id": session_id, "cursor": session.cursor}})
         await self._broadcast_state(session_id)
+        save_session(self.settings.sqlite_db_path, session)
         return self.snapshot(session_id).model_dump()
 
     async def reset(self, session_id: str) -> dict[str, Any]:
@@ -160,6 +168,7 @@ class SessionManager:
         session.updated_at = datetime.now(timezone.utc)
         await self.broadcast(session_id, {"type": "session.reset", "payload": {"session_id": session_id, "cursor": session.cursor}})
         await self._broadcast_state(session_id)
+        save_session(self.settings.sqlite_db_path, session)
         return self.snapshot(session_id).model_dump()
 
     async def step(self, session_id: str) -> dict[str, Any]:
@@ -173,6 +182,7 @@ class SessionManager:
         session.updated_at = datetime.now(timezone.utc)
         await self.broadcast(session_id, {"type": "session.step", "payload": {"session_id": session_id, "cursor": session.cursor}})
         await self._broadcast_state(session_id)
+        save_session(self.settings.sqlite_db_path, session)
         return self.snapshot(session_id).model_dump()
 
     async def compile(self, session_id: str) -> dict[str, Any]:
@@ -189,6 +199,7 @@ class SessionManager:
         }
         session.updated_at = datetime.now(timezone.utc)
         session.status = "compiled" if result.ok else "compile_error"
+        save_session(self.settings.sqlite_db_path, session)
         await self.broadcast(session_id, {"type": "compile.finished" if result.ok else "compile.error", "payload": session.compile})
         return session.compile
 
@@ -197,6 +208,7 @@ class SessionManager:
         if not session.build_path or not session.build_path.exists():
             await self.compile(session_id)
         if not session.build_path or not session.build_path.exists():
+            save_session(self.settings.sqlite_db_path, session)
             return session.run
         await self.broadcast(session_id, {"type": "run.started", "session_id": session_id})
         result = await self.run_manager.run(session.build_path, session.workdir)
@@ -231,6 +243,7 @@ class SessionManager:
             }
             session.status = "finished"
             session.updated_at = datetime.now(timezone.utc)
+            save_session(self.settings.sqlite_db_path, session)
             await self._broadcast_state(session_id)
             await self.broadcast(session_id, {"type": "run.finished", "payload": session.run})
             for event_name, value in (
@@ -246,6 +259,7 @@ class SessionManager:
                 await asyncio.sleep(0)
         elif not result.ok:
             session.status = "run_error"
+            save_session(self.settings.sqlite_db_path, session)
             await self.broadcast(session_id, {"type": "run.error", "payload": session.run})
         return session.run
 

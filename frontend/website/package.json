@@ -4,6 +4,8 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
+    "sync:studio": "node ../../scripts/sync-studio.mjs",
+    "prebuild": "npm run sync:studio",
     "build": "vite build",
     "dev": "vite"
   },

@@ -1,12 +1,20 @@
 (() => {
+  function getApiBaseUrl() {
+    const stored = localStorage.getItem("QUANTUMRISC_API_URL");
+    if (stored) return stored.replace(/\/$/, "");
+    return window.location.origin;
+  }
+
   const api = {
     async json(path, options = {}) {
-      const response = await fetch(path, {
+      const baseUrl = getApiBaseUrl();
+      const url = path.startsWith("http") ? path : `${baseUrl}${path}`;
+      const response = await fetch(url, {
         headers: { "Content-Type": "application/json" },
         ...options,
       });
       if (!response.ok) {
-        throw new Error(`${path} failed: ${response.status}`);
+        throw new Error(`${url} failed: ${response.status}`);
       }
       return response.json();
     },
@@ -252,18 +260,236 @@
   }
 
   async function compileAndRun() {
-    await api.post(`/api/sessions/${state.session.id}/compile`);
-    await api.post(`/api/sessions/${state.session.id}/run`);
-    await refresh();
-    await syncVcd();
+    showOverlay("Compiling RTL design...");
+    try {
+      const compileRes = await api.post(`/api/sessions/${state.session.id}/compile`);
+      if (!compileRes.ok) {
+        showErrorModal("Compilation Error", compileRes.stderr || "RTL Compilation failed.");
+        hideOverlay();
+        return;
+      }
+      
+      showOverlay("Running simulation...");
+      const runRes = await api.post(`/api/sessions/${state.session.id}/run`);
+      if (!runRes.ok) {
+        showErrorModal("Simulation Runtime Error", runRes.stderr || "Simulation execution failed.");
+        hideOverlay();
+        return;
+      }
+      
+      showOverlay("Parsing VCD waveform data...");
+      await refresh();
+      await syncVcd();
+      hideOverlay();
+    } catch (e) {
+      console.error("Compile/Run execution error:", e);
+      showErrorModal("Execution Error", e.message || "Failed to complete compile and run cycle.");
+      hideOverlay();
+    }
+  }
+
+  function updateConnectionStatus(status) {
+    const el = document.getElementById("connection-status");
+    if (!el) return;
+    if (status === "online") {
+      el.textContent = "● simulator online";
+      el.style.color = "var(--green)";
+    } else if (status === "connecting") {
+      el.textContent = "● connecting...";
+      el.style.color = "var(--amber)";
+    } else {
+      el.textContent = "● simulator offline";
+      el.style.color = "var(--red)";
+    }
+  }
+
+  function showOverlay(message) {
+    let overlay = document.getElementById("studio-loading-overlay");
+    if (!overlay) {
+      overlay = document.createElement("div");
+      overlay.id = "studio-loading-overlay";
+      overlay.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        background: rgba(10, 12, 14, 0.85); display: flex; flex-direction: column;
+        align-items: center; justify-content: center; z-index: 9999;
+        font-family: var(--sans); color: var(--text-0); backdrop-filter: blur(4px);
+      `;
+      const spinner = document.createElement("div");
+      spinner.style.cssText = `
+        width: 40px; height: 40px; border: 3px solid var(--bg-3);
+        border-top: 3px solid var(--cyan); border-radius: 50%;
+        animation: spin 1s linear infinite; margin-bottom: 16px;
+      `;
+      if (!document.getElementById("spin-keyframes")) {
+        const style = document.createElement("style");
+        style.id = "spin-keyframes";
+        style.textContent = "@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }";
+        document.head.appendChild(style);
+      }
+      const label = document.createElement("div");
+      label.id = "studio-loading-overlay-label";
+      label.style.cssText = "font-size: 14px; font-weight: 500; letter-spacing: 0.5px;";
+      
+      overlay.appendChild(spinner);
+      overlay.appendChild(label);
+      document.body.appendChild(overlay);
+    }
+    document.getElementById("studio-loading-overlay-label").textContent = message;
+    overlay.style.display = "flex";
+  }
+
+  function hideOverlay() {
+    const overlay = document.getElementById("studio-loading-overlay");
+    if (overlay) overlay.style.display = "none";
+  }
+
+  function showErrorModal(title, message) {
+    let modal = document.getElementById("studio-error-modal");
+    if (!modal) {
+      modal = document.createElement("div");
+      modal.id = "studio-error-modal";
+      modal.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        background: rgba(10, 12, 14, 0.85); display: flex; align-items: center;
+        justify-content: center; z-index: 10000; backdrop-filter: blur(4px);
+      `;
+      const content = document.createElement("div");
+      content.style.cssText = `
+        background: var(--bg-1); border: 1px solid var(--red-dim);
+        border-radius: 8px; width: 480px; max-width: 90%; padding: 24px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5); font-family: var(--sans);
+      `;
+      const header = document.createElement("div");
+      header.id = "studio-error-modal-title";
+      header.style.cssText = "font-size: 16px; font-weight: 700; color: var(--red); margin-bottom: 12px;";
+      
+      const body = document.createElement("pre");
+      body.id = "studio-error-modal-body";
+      body.style.cssText = `
+        font-family: var(--mono); font-size: 12px; color: var(--text-1);
+        background: var(--bg-0); border: 1px solid var(--panel-border);
+        padding: 12px; border-radius: 6px; overflow: auto; max-height: 200px;
+        white-space: pre-wrap; word-break: break-all; margin-bottom: 20px;
+      `;
+      const btn = document.createElement("button");
+      btn.textContent = "Dismiss";
+      btn.style.cssText = `
+        height: 32px; padding: 0 16px; background: var(--bg-3);
+        border: 1px solid var(--panel-border); border-radius: 4px;
+        color: var(--text-0); font-weight: 600; cursor: pointer; float: right;
+      `;
+      btn.onclick = () => { modal.style.display = "none"; };
+      
+      content.appendChild(header);
+      content.appendChild(body);
+      content.appendChild(btn);
+      modal.appendChild(content);
+      document.body.appendChild(modal);
+    }
+    document.getElementById("studio-error-modal-title").textContent = title;
+    document.getElementById("studio-error-modal-body").textContent = message;
+    modal.style.display = "flex";
+  }
+
+  function showOfflineOverlay() {
+    let overlay = document.getElementById("studio-offline-overlay");
+    if (!overlay) {
+      overlay = document.createElement("div");
+      overlay.id = "studio-offline-overlay";
+      overlay.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        background: var(--bg-0); display: flex; flex-direction: column;
+        align-items: center; justify-content: center; z-index: 99999;
+        font-family: var(--sans); padding: 24px; box-sizing: border-box;
+      `;
+      const card = document.createElement("div");
+      card.style.cssText = `
+        background: var(--bg-1); border: 1px solid var(--panel-border);
+        border-radius: 8px; width: 440px; max-width: 100%; padding: 32px;
+        box-shadow: 0 15px 40px rgba(0,0,0,0.6); text-align: center;
+      `;
+      
+      const title = document.createElement("h2");
+      title.textContent = "QuantumRISC Simulator Offline";
+      title.style.cssText = "color: var(--red); font-size: 20px; font-weight: 700; margin-bottom: 8px;";
+      
+      const desc = document.createElement("p");
+      desc.textContent = "Unable to connect to the simulation backend. Please ensure the backend is running and configured correctly.";
+      desc.style.cssText = "color: var(--text-1); font-size: 13px; line-height: 1.5; margin-bottom: 24px;";
+      
+      const label = document.createElement("label");
+      label.textContent = "BACKEND API URL";
+      label.style.cssText = "display: block; text-align: left; font-size: 10px; font-weight: 600; letter-spacing: 1px; color: var(--text-2); margin-bottom: 8px; text-transform: uppercase;";
+      
+      const input = document.createElement("input");
+      input.type = "text";
+      input.id = "offline-api-url-input";
+      input.placeholder = "e.g. https://quantumrisc-production.up.railway.app";
+      input.style.cssText = `
+        width: 100%; height: 36px; background: var(--bg-2); border: 1px solid var(--panel-border);
+        border-radius: 6px; padding: 0 12px; box-sizing: border-box; color: var(--text-0);
+        font-family: var(--mono); font-size: 12px; margin-bottom: 16px; outline: none;
+      `;
+      input.value = localStorage.getItem("QUANTUMRISC_API_URL") || "";
+      
+      const btn = document.createElement("button");
+      btn.textContent = "Save & Reconnect";
+      btn.style.cssText = `
+        width: 100%; height: 38px; background: var(--cyan-dim); border: 1px solid rgba(79,217,236,0.3);
+        border-radius: 6px; color: var(--cyan); font-weight: 600; cursor: pointer;
+        transition: all 0.12s ease;
+      `;
+      btn.onmouseover = () => { btn.style.background = "rgba(79,217,236,0.2)"; };
+      btn.onmouseout = () => { btn.style.background = "var(--cyan-dim)"; };
+      btn.onclick = () => {
+        const val = input.value.trim();
+        if (val) {
+          localStorage.setItem("QUANTUMRISC_API_URL", val);
+        } else {
+          localStorage.removeItem("QUANTUMRISC_API_URL");
+        }
+        overlay.style.display = "none";
+        start();
+      };
+      
+      card.appendChild(title);
+      card.appendChild(desc);
+      card.appendChild(label);
+      card.appendChild(input);
+      card.appendChild(btn);
+      overlay.appendChild(card);
+      document.body.appendChild(overlay);
+    }
+    document.getElementById("offline-api-url-input").value = localStorage.getItem("QUANTUMRISC_API_URL") || "";
+    overlay.style.display = "flex";
   }
 
   function connectWebSocket() {
-    const proto = location.protocol === "https:" ? "wss" : "ws";
-    const ws = new WebSocket(`${proto}://${location.host}/ws/sessions/${state.session.id}`);
+    if (state.ws) {
+      try { state.ws.close(); } catch(e) {}
+    }
+    const apiBase = getApiBaseUrl();
+    const wsProto = apiBase.startsWith("https") ? "wss" : "ws";
+    const wsBase = apiBase.replace(/^https?:\/\//, "");
+    const wsUrl = `${wsProto}://${wsBase}/ws/sessions/${state.session.id}`;
+
+    console.log("Connecting WebSocket to:", wsUrl);
+    updateConnectionStatus("connecting");
+
+    const ws = new WebSocket(wsUrl);
     state.ws = ws;
+
+    ws.onopen = () => {
+      console.log("WebSocket connected");
+      updateConnectionStatus("online");
+    };
+
     ws.onmessage = (event) => {
       const msg = JSON.parse(event.data);
+      if (msg.type === "ping") {
+        try { ws.send(JSON.stringify({ type: "pong" })); } catch(e) {}
+        return;
+      }
       if (msg.type === "state.snapshot" && msg.payload) {
         state.snapshot = msg.payload;
         applyLiveModel(msg.payload);
@@ -271,20 +497,58 @@
         refresh();
       }
     };
+
+    ws.onclose = () => {
+      console.log("WebSocket disconnected. Retrying in 3 seconds...");
+      updateConnectionStatus("offline");
+      setTimeout(() => {
+        if (state.session && state.ws === ws) connectWebSocket();
+      }, 3000);
+    };
+
+    ws.onerror = (err) => {
+      console.error("WebSocket error:", err);
+      updateConnectionStatus("offline");
+      ws.close();
+    };
   }
 
   async function start() {
-    await api.get("/api/health");
-    const discovery = await api.get("/api/discovery");
-    state.session = await api.post("/api/sessions", {
-      top: discovery.tops.includes("pipeline_cpu_complete") ? "pipeline_cpu_complete" : discovery.tops[0],
-      testbench: discovery.default_testbench || "pipeline_cpu_complete_tb",
-    });
+    showOverlay("Connecting to simulation engine...");
+    try {
+      await api.get("/api/health");
+      
+      showOverlay("Discovering simulation targets...");
+      const discovery = await api.get("/api/discovery");
+      
+      showOverlay("Initializing simulation session...");
+      state.session = await api.post("/api/sessions", {
+        top: discovery.tops.includes("pipeline_cpu_complete") ? "pipeline_cpu_complete" : discovery.tops[0],
+        testbench: discovery.default_testbench || "pipeline_cpu_complete_tb",
+      });
 
-    connectWebSocket();
-    await syncSession();
-    await compileAndRun();
+      const offlineOverlay = document.getElementById("studio-offline-overlay");
+      if (offlineOverlay) offlineOverlay.style.display = "none";
+
+      connectWebSocket();
+      await syncSession();
+      await compileAndRun();
+      hideOverlay();
+    } catch (error) {
+      console.error("Initialization failed:", error);
+      hideOverlay();
+      showOfflineOverlay();
+    }
   }
+
+  window.QuantumRiscRestart = async () => {
+    if (state.ws) {
+      try { state.ws.close(); } catch(e) {}
+    }
+    state.session = null;
+    state.snapshot = null;
+    await start();
+  };
 
   function bindControl(selector, fn) {
     const el = document.querySelector(selector);
@@ -327,3 +591,4 @@
     console.error(error);
   });
 })();
+

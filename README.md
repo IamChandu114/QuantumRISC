@@ -75,7 +75,7 @@ The platform exists to make CPU design visible end-to-end. Instead of leaving RT
 ![Pipeline visualizer preview](assets/screenshots/pipeline-visualizer.svg)
 ![RTL explorer preview](assets/screenshots/rtl-explorer.svg)
 ![Verification dashboard preview](assets/screenshots/verification-dashboard.svg)
-![Documentation portal preview](assets/screenshots/documentation-portal.svg)
+![Documentation portal pew](assets/screenshots/documentation-portal.svg)
 
 ## Demo Preview
 
@@ -132,6 +132,8 @@ The public release is centered on the live Studio experience:
 - One backend process serves the website, studio, and docs routes.
 - The Studio launches the simulation session and consumes live backend data.
 - The public site stays separate from the engineering application.
+- Fully containerized via Docker for seamless cloud deployments (e.g., Railway, Render).
+- Verified continuously by GitHub Actions for code hygiene and frontend build stability.
 
 ## Repository Structure
 

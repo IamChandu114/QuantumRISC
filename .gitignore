@@ -10,3 +10,9 @@ frontend/**/dist/
 .pytest_cache/
 __pycache__/
 *.pyc
+
+# Database and simulation artifacts
+*.db
+*.vvp
+*.vcd
+*_sim

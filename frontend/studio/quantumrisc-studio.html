@@ -32,8 +32,14 @@
     --radius:6px;
   }
   *{box-sizing:border-box; margin:0; padding:0;}
-  html,body{height:100%;}
+  html{
+    height:100%;
+    width:100%;
+    overflow:hidden;
+  }
   body{
+    height:100%;
+    width:100%;
     background:var(--bg-0);
     color:var(--text-0);
     font-family:var(--sans);
@@ -49,14 +55,17 @@
 
   .app{
     display:grid;
-    grid-template-rows:44px 1fr 26px;
-    grid-template-columns:224px 1fr;
+    grid-template-rows:44px minmax(0,1fr) 26px;
+    grid-template-columns:224px minmax(0,1fr);
     grid-template-areas:
       "toolbar toolbar"
       "sidebar main"
       "status status";
     height:100vh;
-    width:100vw;
+    height:100dvh;
+    width:100%;
+    min-height:0;
+    min-width:0;
     background-image:
       linear-gradient(rgba(255,255,255,0.012) 1px, transparent 1px),
       linear-gradient(90deg, rgba(255,255,255,0.012) 1px, transparent 1px);
@@ -72,6 +81,9 @@
     padding:0 14px;
     background:var(--bg-1);
     border-bottom:1px solid var(--panel-border-soft);
+    min-width:0;
+    overflow-x:auto;
+    scrollbar-width:thin;
   }
   .brand{
     display:flex;
@@ -168,7 +180,10 @@
     background:var(--bg-1);
     border-right:1px solid var(--panel-border-soft);
     overflow-y:auto;
+    overflow-x:hidden;
     padding:10px 8px 16px;
+    min-height:0;
+    min-width:0;
   }
   .nav-section-label{
     font-size:9.5px;
@@ -212,7 +227,10 @@
   .main{
     grid-area:main;
     overflow:auto;
+    overflow-x:hidden;
     position:relative;
+    min-height:0;
+    min-width:0;
     background:
       radial-gradient(ellipse 900px 500px at 15% -10%, rgba(79,217,236,0.05), transparent 60%),
       var(--bg-0);
@@ -554,6 +572,58 @@
 
   .flag-pill{display:inline-flex; align-items:center; gap:5px; font-family:var(--mono); font-size:11px; padding:4px 10px; border-radius:6px; background:var(--bg-3); color:var(--text-2);}
   .flag-pill.on{background:var(--cyan-dim); color:var(--cyan);}
+
+  /* ---------- RESPONSIVE OVERRIDES ---------- */
+  .menu-toggle {
+    display: none;
+    width: 30px; height: 30px;
+    align-items: center; justify-content: center;
+    background: transparent; border: 1px solid transparent;
+    border-radius: 5px; color: var(--text-1); cursor: pointer;
+    margin-right: 8px;
+  }
+  .menu-toggle:hover { background: var(--bg-3); color: var(--text-0); border-color: var(--panel-border); }
+
+  @media (max-width: 900px) {
+    .app {
+      grid-template-columns: 1fr !important;
+      grid-template-areas:
+        "toolbar"
+        "main"
+        "status" !important;
+    }
+    .sidebar {
+      position: fixed;
+      top: 44px;
+      left: -224px;
+      bottom: 26px;
+      width: 224px;
+      z-index: 999;
+      border-right: 1px solid var(--panel-border) !important;
+      box-shadow: 10px 0 30px rgba(0,0,0,0.5);
+      transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .sidebar.open {
+      left: 0 !important;
+    }
+    .menu-toggle {
+      display: flex !important;
+    }
+    .dash-row {
+      grid-template-columns: 1fr !important;
+    }
+    .stat-grid {
+      grid-template-columns: repeat(2, 1fr) !important;
+    }
+  }
+  @media (max-width: 540px) {
+    .stat-grid {
+      grid-template-columns: 1fr !important;
+    }
+    .toolbar-spacer, .search-pill, .brand small {
+      display: none !important;
+    }
+  }
 </style>
 </head>
 <body>
@@ -561,6 +631,9 @@
 
   <!-- ================= TOOLBAR ================= -->
   <div class="toolbar">
+    <button class="menu-toggle" id="menu-toggle-btn" title="Toggle Sidebar">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+    </button>
     <div class="brand">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2L3 7v10l9 5 9-5V7l-9-5z" stroke="#4FD9EC" stroke-width="1.4"/><path d="M12 2v20M3 7l9 5 9-5M3 17l9-5 9 5" stroke="#4FD9EC" stroke-width="1" opacity="0.4"/></svg>
       <div>QuantumRISC<small>Studio · RV32I</small></div>
@@ -628,7 +701,7 @@
     <div class="seg">RV32I · 5-STAGE IN-ORDER</div>
     <div class="spacer"></div>
     <div class="seg">FPGA: DE10-Nite <span style="color:var(--text-1)">not connected</span></div>
-    <div class="seg" style="color:var(--green)">● simulator online</div>
+    <div class="seg" id="connection-status" style="color:var(--text-2)">● connecting...</div>
   </div>
 </div>
 
@@ -972,7 +1045,12 @@ function renderSidebar(){
     `).join('')}
   `).join('');
   el.querySelectorAll('[data-nav]').forEach(node=>{
-    node.addEventListener('click', ()=>{ activeView = node.dataset.nav; renderAll(); });
+    node.addEventListener('click', ()=>{ 
+      activeView = node.dataset.nav; 
+      renderAll(); 
+      const sidebar = document.getElementById('sidebar');
+      if (sidebar) sidebar.classList.remove('open');
+    });
   });
 }
 
@@ -1909,7 +1987,19 @@ function renderSettings(){
             <div class="toggle-row"><div><div class="toggle-label">Usage telemetry</div><div class="toggle-desc">Share anonymous usage data with the studio team</div></div><div class="switch ${settingsToggles.telemetry?'on':''}" data-setting="telemetry"></div></div>
           </div>
         </div>
-        <div class="panel"><div class="panel-head"><div class="panel-title">Keyboard Shortcuts</div></div>
+        <div class="panel"><div class="panel-head"><div class="panel-title">Backend Configuration</div></div>
+          <div class="panel-body" style="padding: 16px;">
+            <div style="margin-bottom: 12px;">
+              <label style="display: block; font-weight: 600; margin-bottom: 6px; color: var(--text-1); font-family: var(--sans);">Railway Backend URL</label>
+              <input type="text" id="backend-url-input" style="width: 100%; height: 32px; padding: 0 10px; background: var(--bg-2); border: 1px solid var(--panel-border); border-radius: var(--radius); color: var(--text-0); font-family: var(--mono); font-size: 12px; box-sizing: border-box;" placeholder="e.g. https://quantumrisc-production.up.railway.app">
+              <span style="font-size: 10.5px; color: var(--text-2); margin-top: 4px; display: block;">Leave empty to use the relative backend (default when hosted together).</span>
+            </div>
+            <button id="save-backend-url" style="height: 30px; padding: 0 16px; background: var(--cyan-dim); border: 1px solid rgba(79,217,236,0.3); border-radius: var(--radius); color: var(--cyan); font-weight: 600; cursor: pointer; transition: all 0.12s ease;">Save & Reconnect</button>
+          </div>
+        </div>
+      </div>
+      <div class="dash-row" style="margin-top: 16px;">
+        <div class="panel" style="grid-column: 1 / -1;"><div class="panel-head"><div class="panel-title">Keyboard Shortcuts</div></div>
           <div class="panel-body">
             ${shortcuts.map(([label,key])=>`<div class="kbd-row"><span>${label}</span><kbd>${key}</kbd></div>`).join('')}
           </div>
@@ -2013,6 +2103,28 @@ function renderMain(){
   // Settings toggles
   main.querySelectorAll('[data-setting]').forEach(b=>b.addEventListener('click', ()=>{ const k=b.dataset.setting; settingsToggles[k]=!settingsToggles[k]; renderMain(); }));
 
+  if (activeView === 'settings') {
+    const input = document.getElementById('backend-url-input');
+    if (input) {
+      input.value = localStorage.getItem("QUANTUMRISC_API_URL") || "";
+    }
+    const btn = document.getElementById('save-backend-url');
+    if (btn) {
+      btn.addEventListener('click', async () => {
+        const val = input.value.trim();
+        if (val) {
+          localStorage.setItem("QUANTUMRISC_API_URL", val);
+        } else {
+          localStorage.removeItem("QUANTUMRISC_API_URL");
+        }
+        alert("Backend API URL updated to: " + (val || "Relative path (default)"));
+        if (typeof window.QuantumRiscRestart === "function") {
+          await window.QuantumRiscRestart();
+        }
+      });
+    }
+  }
+
   // Simulation Center scrubber
   const scrub = document.getElementById('sim-scrub');
   if(scrub) scrub.addEventListener('input', e=>{ pauseSim(); sim.cycle = parseInt(e.target.value); renderMain(); renderStatusBar(); });
@@ -2094,6 +2206,14 @@ function resetSim(){
 document.getElementById('btn-run').addEventListener('click', toggleRun);
 document.getElementById('btn-step').addEventListener('click', stepCycle);
 document.getElementById('btn-reset').addEventListener('click', resetSim);
+
+const menuToggle = document.getElementById('menu-toggle-btn');
+if (menuToggle) {
+  menuToggle.addEventListener('click', () => {
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar) sidebar.classList.toggle('open');
+  });
+}
 
 const clockSlider = document.getElementById('clock-slider');
 clockSlider.addEventListener('input', e=>{
