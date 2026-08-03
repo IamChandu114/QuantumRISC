@@ -30,7 +30,7 @@
     --mono:'JetBrains Mono', ui-monospace, monospace;
     --sans:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     --radius:6px;
-    --sidebar-width:224px; /* adjustable by resizer */
+    --sidebar-width:280px; /* ensure wider default to match Studio screenshot */
   }
   *{box-sizing:border-box; margin:0; padding:0;}
   html,body{height:100%;}
@@ -52,7 +52,7 @@
   .app{
     display:grid;
     grid-template-rows:44px 1fr 26px;
-    grid-template-columns:var(--sidebar-width,224px) 1fr;
+    grid-template-columns:var(--sidebar-width) 1fr; /* enforce variable-driven layout */
     grid-template-areas:
       "toolbar toolbar"
       "sidebar main"
@@ -64,7 +64,7 @@
       linear-gradient(90deg, rgba(255,255,255,0.012) 1px, transparent 1px);
     background-size:32px 32px;
   }
-  /* collapsed sidebar state */
+  /* collapsed sidebar state (only via toggle) */
   .app.collapsed{ --sidebar-width:56px; }
 
   /* Ensure grid children can shrink (prevents overflow) */
@@ -79,7 +79,7 @@
     padding:0 14px;
     background:var(--bg-1);
     border-bottom:1px solid var(--panel-border-soft);
-    z-index:60;
+    z-index:80; /* above sidebar overlays */
   }
   .brand{
     display:flex;
@@ -126,26 +126,37 @@
     grid-area:sidebar;
     background:var(--bg-1);
     border-right:1px solid var(--panel-border-soft);
-    overflow:auto;
+    overflow-y:auto;
     padding:10px 8px 16px;
     transition:width .12s ease;
-    width:var(--sidebar-width); /* help when embedded */
-    z-index:50;
+    width:var(--sidebar-width) !important; /* help when embedded and ensure enforced */
+    position:relative; z-index:70; /* ensure not hidden by overlays */
   }
   /* keep items from forcing overflow */
   .sidebar, .sidebar *{min-width:0}
   .nav-section-label{font-size:9.5px; letter-spacing:1.1px; color:var(--text-2); text-transform:uppercase; font-weight:600; padding:14px 10px 6px;}
   .nav-section-label:first-child{padding-top:4px;}
-  .nav-item{display:flex; align-items:center; gap:9px; padding:7px 10px; border-radius:5px; color:var(--text-1); font-size:12.5px; font-weight:500; cursor:pointer; position:relative; transition:background .12s ease, color .12s ease; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-  .nav-item svg{flex-shrink:0; opacity:0.9; width:16px; height:16px;}
-  .nav-item svg circle, .nav-item svg path, .nav-item svg rect{fill:var(--text-1);} /* ensure icons visible */
+  .nav-item{display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:6px; color:var(--text-0); font-size:13px; font-weight:600; cursor:pointer; position:relative; transition:background .12s ease, color .12s ease; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .nav-item svg{flex-shrink:0; opacity:1; width:18px; height:18px;}
+  .nav-item svg circle, .nav-item svg path, .nav-item svg rect{fill:var(--text-1);}
   .nav-item:hover{background:var(--bg-2); color:var(--text-0);} 
-  .nav-item.active{background:var(--cyan-dim); color:var(--cyan);} 
+  .nav-item.active{background:transparent; color:var(--cyan);}
   .nav-item .label{overflow:hidden; text-overflow:ellipsis; display:block;}
 
-  /* when collapsed hide labels */
+  /* when collapsed hide labels (only via user toggle) */
   .app.collapsed .nav-item .label{display:none}
   .app.collapsed .nav-section-label{display:none}
+
+  /* Force labels visible on desktop when NOT collapsed */
+  @media (min-width: 981px) {
+    .app:not(.collapsed) .nav-section-label,
+    .app:not(.collapsed) .nav-item .label {
+      display: block !important;
+      opacity: 1 !important;
+      visibility: visible !important;
+    }
+    .app { --sidebar-width:280px; }
+  }
 
   /* ---------- MAIN ---------- */
   .main{
@@ -195,7 +206,7 @@
 
   /* resizer handle */
   .sidebar-resizer{
-    position:fixed; top:44px; bottom:26px; left:calc(var(--sidebar-width,224px) - 3px); width:6px; cursor:col-resize; z-index:55; background:transparent;
+    position:fixed; top:44px; bottom:26px; left:calc(var(--sidebar-width) - 3px); width:6px; cursor:col-resize; z-index:75; background:transparent;
   }
   .sidebar-resizer:hover{background:rgba(255,255,255,0.02);} 
   .sidebar-resizer:focus{outline:2px solid rgba(79,217,236,0.18);} 
@@ -224,10 +235,12 @@
     <div class="nav-item"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/></svg><div class="label">Pipeline</div></div>
     <div class="nav-item"><svg viewBox="0 0 24 24"><path d="M4 12h16" stroke-width="0"/></svg><div class="label">Registers</div></div>
     <div class="nav-item"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"/></svg><div class="label">Memory</div></div>
-    <div style="height:18px;"></div>
-    <div class="nav-section-label">Tools</div>
-    <div class="nav-item"><svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg><div class="label">Simulator</div></div>
+    <div class="nav-item"><svg viewBox="0 0 24 24"><path d="M3 3h18v18H3z"/></svg><div class="label">Cache</div></div>
     <div class="nav-item"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/></svg><div class="label">Waveforms</div></div>
+    <div class="nav-item"><svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg><div class="label">Performance</div></div>
+    <div class="nav-item"><svg viewBox="0 0 24 24"><path d="M4 4h16v4H4z"/></svg><div class="label">Verification</div></div>
+    <div class="nav-item"><svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/></svg><div class="label">FPGA</div></div>
+    <div class="nav-item"><svg viewBox="0 0 24 24"><path d="M12 3v18"/></svg><div class="label">Settings</div></div>
   </div>
 
   <div class="main" id="main">
@@ -305,13 +318,14 @@
   const minW = 160; const maxW = 420; const collapsedW = 56;
 
   // Ensure expanded by default on load so labels are visible
-  document.addEventListener('DOMContentLoaded', ()=>{ app.classList.remove('collapsed'); window.requestAnimationFrame(()=>{ resizer.style.left = `calc(var(--sidebar-width,224px) - 3px)`; }); });
+  // Do not auto-collapse; only user toggle should collapse
+  document.addEventListener('DOMContentLoaded', ()=>{ app.classList.remove('collapsed'); window.requestAnimationFrame(()=>{ resizer.style.left = `calc(var(--sidebar-width) - 3px)`; }); });
 
   function isCollapsed(){ return app.classList.contains('collapsed'); }
   toggle.addEventListener('click', ()=>{
     app.classList.toggle('collapsed');
     // update resizer position
-    requestAnimationFrame(()=>{ resizer.style.left = `calc(var(--sidebar-width,224px) - 3px)`; });
+    requestAnimationFrame(()=>{ resizer.style.left = `calc(var(--sidebar-width) - 3px)`; });
   });
 
   // Resizer drag
@@ -339,7 +353,7 @@
   });
 
   // Update resizer position on resize and load
-  function updateResizer(){ resizer.style.left = `calc(var(--sidebar-width,224px) - 3px)`; }
+  function updateResizer(){ resizer.style.left = `calc(var(--sidebar-width) - 3px)`; }
   window.addEventListener('resize', updateResizer);
   updateResizer();
 
@@ -348,7 +362,7 @@
     const step = 8;
     if(e.key==='ArrowLeft' || e.key==='ArrowDown'){ e.preventDefault(); adjust(-step); }
     if(e.key==='ArrowRight' || e.key==='ArrowUp'){ e.preventDefault(); adjust(step); }
-    function adjust(delta){ let cur = parseInt(getComputedStyle(app).getPropertyValue('--sidebar-width')) || 224; let nw = Math.min(maxW, Math.max(minW, cur + delta)); app.style.setProperty('--sidebar-width', nw + 'px'); updateResizer(); }
+    function adjust(delta){ let cur = parseInt(getComputedStyle(app).getPropertyValue('--sidebar-width')) || 280; let nw = Math.min(maxW, Math.max(minW, cur + delta)); app.style.setProperty('--sidebar-width', nw + 'px'); updateResizer(); }
   });
 
   // Ensure no horizontal overflow on small screens
