@@ -1,7 +1,16 @@
 (() => {
+  const BACKEND_BASE = "https://quantumrisc-production.up.railway.app"; // production default
+
+  function fullPath(path) {
+    if (!path) return path;
+    // allow absolute URLs to pass through
+    if (path.startsWith("http://") || path.startsWith("https://")) return path;
+    return BACKEND_BASE.replace(/\/$/, "") + path;
+  }
+
   const api = {
     async json(path, options = {}) {
-      const response = await fetch(path, {
+      const response = await fetch(fullPath(path), {
         headers: { "Content-Type": "application/json" },
         ...options,
       });
@@ -25,7 +34,19 @@
     session: null,
     snapshot: null,
     ws: null,
+    _reconnectAttempts: 0,
   };
+
+  function updateConnectionStatus(text, color) {
+    try {
+      const el = document.getElementById('sb-state');
+      const sq = document.getElementById('sb-state-sq');
+      if (el) el.textContent = text;
+      if (sq) sq.style.background = color;
+    } catch (e) {
+      // ignore
+    }
+  }
 
   function toInt(text) {
     if (text == null) return null;
@@ -259,9 +280,25 @@
   }
 
   function connectWebSocket() {
-    const proto = location.protocol === "https:" ? "wss" : "ws";
-    const ws = new WebSocket(`${proto}://${location.host}/ws/sessions/${state.session.id}`);
+    if (!state.session) return;
+    const proto = BACKEND_BASE.startsWith("https") ? "wss" : "ws";
+    const url = BACKEND_BASE.replace(/^https?:/, proto + ":");
+    const wsUrl = `${url.replace(/\/$/, '')}/ws/sessions/${state.session.id}`;
+
+    tryConnect(wsUrl);
+  }
+
+  function tryConnect(wsUrl) {
+    updateConnectionStatus('CONNECTING', 'orange');
+    const ws = new WebSocket(wsUrl);
     state.ws = ws;
+
+    ws.onopen = () => {
+      state._reconnectAttempts = 0;
+      updateConnectionStatus('CONNECTED', 'var(--green)');
+      console.info('WebSocket connected');
+    };
+
     ws.onmessage = (event) => {
       const msg = JSON.parse(event.data);
       if (msg.type === "state.snapshot" && msg.payload) {
@@ -271,9 +308,28 @@
         refresh();
       }
     };
+
+    ws.onclose = () => {
+      updateConnectionStatus('DISCONNECTED', 'var(--red)');
+      scheduleReconnect(wsUrl);
+    };
+
+    ws.onerror = (err) => {
+      console.error('WebSocket error', err);
+      ws.close();
+    };
+  }
+
+  function scheduleReconnect(wsUrl) {
+    state._reconnectAttempts = (state._reconnectAttempts || 0) + 1;
+    const attempt = state._reconnectAttempts;
+    const delay = Math.min(30000, Math.pow(2, attempt) * 500); // exp backoff up to 30s
+    console.info(`WebSocket reconnect attempt ${attempt} in ${delay}ms`);
+    setTimeout(() => tryConnect(wsUrl), delay);
   }
 
   async function start() {
+    updateConnectionStatus('INITIALIZING', 'orange');
     await api.get("/api/health");
     const discovery = await api.get("/api/discovery");
     state.session = await api.post("/api/sessions", {
@@ -284,6 +340,7 @@
     connectWebSocket();
     await syncSession();
     await compileAndRun();
+    updateConnectionStatus('CONNECTED', 'var(--green)');
   }
 
   function bindControl(selector, fn) {
@@ -325,5 +382,6 @@
 
   start().catch((error) => {
     console.error(error);
+    updateConnectionStatus('ERROR', 'var(--red)');
   });
 })();
