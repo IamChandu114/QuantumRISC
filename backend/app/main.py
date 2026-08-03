@@ -4,9 +4,9 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from backend.app.api.routes import build_router
-from backend.app.config.settings import get_settings
-from backend.app.sessions.manager import SessionManager
+from app.api.routes import build_router
+from app.config.settings import get_settings
+from app.sessions.manager import SessionManager
 
 
 settings = get_settings()

@@ -4,8 +4,8 @@ import asyncio
 
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 
-from backend.app.models.schemas import DiscoveryResponse, SessionCreateRequest, SessionCreateResponse, CompileResponse, RunResponse
-from backend.app.sessions.manager import SessionManager
+from app.models.schemas import DiscoveryResponse, SessionCreateRequest, SessionCreateResponse, CompileResponse, RunResponse
+from app.sessions.manager import SessionManager
 
 
 def build_router(manager: SessionManager) -> APIRouter:
