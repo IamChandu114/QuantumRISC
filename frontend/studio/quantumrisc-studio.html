@@ -21,196 +21,65 @@
     --cyan-dim:rgba(79,217,236,0.14);
     --green:#33D488;
     --green-dim:rgba(51,212,136,0.14);
-    --copper:#C8873F;
-    --copper-dim:rgba(200,135,63,0.14);
-    --amber:#E8A93D;
-    --amber-dim:rgba(232,169,61,0.16);
-    --red:#E5484D;
-    --red-dim:rgba(229,72,77,0.16);
-    --mono:'JetBrains Mono', ui-monospace, monospace;
-    --sans:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     --radius:6px;
-    --sidebar-width:280px; /* ensure wider default to match Studio screenshot */
+    --sidebar-width:280px; /* enforced wider default */
   }
   *{box-sizing:border-box; margin:0; padding:0;}
   html,body{height:100%;}
   body{
     background:var(--bg-0);
     color:var(--text-0);
-    font-family:var(--sans);
+    font-family:Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     font-size:13px;
     overflow:hidden;
-    -webkit-font-smoothing:antialiased;
   }
-  ::selection{background:var(--cyan-dim); color:var(--cyan);}
-  ::-webkit-scrollbar{width:10px; height:10px;}
-  ::-webkit-scrollbar-track{background:transparent;}
-  ::-webkit-scrollbar-thumb{background:#2A3037; border-radius:5px; border:2px solid var(--bg-1);}
-  ::-webkit-scrollbar-thumb:hover{background:#38404A;}
 
-  /* Make studio use full viewport height reliably */
+  /* Strong visibility rules to prevent the sidebar being hidden by external CSS/scripts */
+  .sidebar,
+  .sidebar *,
+  .nav-item,
+  .nav-item .label,
+  .nav-section-label {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
   .app{
     display:grid;
     grid-template-rows:44px 1fr 26px;
-    grid-template-columns:var(--sidebar-width) 1fr; /* enforce variable-driven layout */
+    grid-template-columns:var(--sidebar-width) 1fr; /* enforce left rail */
     grid-template-areas:
       "toolbar toolbar"
       "sidebar main"
       "status status";
-    height:100dvh; /* use dynamic viewport height */
+    height:100dvh;
     width:100vw;
     background-image:
       linear-gradient(rgba(255,255,255,0.012) 1px, transparent 1px),
       linear-gradient(90deg, rgba(255,255,255,0.012) 1px, transparent 1px);
     background-size:32px 32px;
   }
-  /* collapsed sidebar state (only via toggle) */
-  .app.collapsed{ --sidebar-width:56px; }
 
-  /* Ensure grid children can shrink (prevents overflow) */
-  .app > * { min-width:0; min-height:0; }
+  .toolbar{grid-area:toolbar; display:flex; align-items:center; gap:14px; padding:0 14px; background:var(--bg-1); border-bottom:1px solid var(--panel-border-soft); z-index:90;}
+  .brand{display:flex; align-items:center; gap:8px; font-weight:700; font-size:13px; color:var(--text-0); padding-right:14px; border-right:1px solid var(--panel-border-soft); height:100%;}
+  .tbtn{width:30px;height:30px;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid transparent;border-radius:5px;color:var(--text-1);cursor:pointer;}
+  .tbtn:hover{background:var(--bg-3);color:var(--text-0);}
 
-  /* ---------- TOOLBAR ---------- */
-  .toolbar{
-    grid-area:toolbar;
-    display:flex;
-    align-items:center;
-    gap:14px;
-    padding:0 14px;
-    background:var(--bg-1);
-    border-bottom:1px solid var(--panel-border-soft);
-    z-index:80; /* above sidebar overlays */
-  }
-  .brand{
-    display:flex;
-    align-items:center;
-    gap:8px;
-    font-weight:700;
-    font-size:13px;
-    letter-spacing:0.4px;
-    color:var(--text-0);
-    padding-right:14px;
-    border-right:1px solid var(--panel-border-soft);
-    height:100%;
-  }
-  .brand svg{display:block;}
-  .brand small{
-    display:block;
-    font-weight:500;
-    font-size:9px;
-    letter-spacing:1.2px;
-    color:var(--text-2);
-    text-transform:uppercase;
-    margin-top:1px;
-  }
-  .tool-group{display:flex; align-items:center; gap:2px;}
-  .tbtn{
-    width:30px; height:30px;
-    display:flex; align-items:center; justify-content:center;
-    background:transparent;
-    border:1px solid transparent;
-    border-radius:5px;
-    color:var(--text-1);
-    cursor:pointer;
-    transition:all .12s ease;
-  }
-  .tbtn:hover{background:var(--bg-3); color:var(--text-0); border-color:var(--panel-border);} 
-  /* ensure toolbar toggle stands out */
-  #sidebar-toggle{display:inline-flex; align-items:center; justify-content:center;}
+  /* Sidebar enforced high z-index so overlays don't cover it */
+  .sidebar{grid-area:sidebar;background:var(--bg-1);border-right:1px solid var(--panel-border-soft);overflow-y:auto;padding:12px;transition:width .12s ease;position:relative;z-index:80;width:var(--sidebar-width) !important;}
+  .nav-section-label{font-size:9.5px;color:var(--text-2);text-transform:uppercase;font-weight:600;padding:8px 10px 6px;}
+  .nav-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:6px;color:var(--text-0);font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .nav-item svg{width:18px;height:18px;flex-shrink:0;opacity:1}
+  .nav-item:hover{background:var(--bg-2);}
+  .nav-item.active{color:var(--cyan)}
+  .nav-item .label{display:block}
 
-  .toolbar-spacer{flex:1;}
-  .search-pill{display:flex; align-items:center; gap:7px; background:var(--bg-2); border:1px solid var(--panel-border); border-radius:6px; padding:0 10px; height:28px; color:var(--text-2); font-size:11.5px; width:220px; cursor:pointer;}
+  .main{grid-area:main; overflow:auto; position:relative; background:var(--bg-0); min-width:0;}
+  .status{grid-area:status;background:var(--bg-1);border-top:1px solid var(--panel-border-soft);display:flex;align-items:center;padding:0 14px;font-size:10.5px;color:var(--text-2);}
 
-  /* ---------- SIDEBAR ---------- */
-  .sidebar{
-    grid-area:sidebar;
-    background:var(--bg-1);
-    border-right:1px solid var(--panel-border-soft);
-    overflow-y:auto;
-    padding:10px 8px 16px;
-    transition:width .12s ease;
-    width:var(--sidebar-width) !important; /* help when embedded and ensure enforced */
-    position:relative; z-index:70; /* ensure not hidden by overlays */
-  }
-  /* keep items from forcing overflow */
-  .sidebar, .sidebar *{min-width:0}
-  .nav-section-label{font-size:9.5px; letter-spacing:1.1px; color:var(--text-2); text-transform:uppercase; font-weight:600; padding:14px 10px 6px;}
-  .nav-section-label:first-child{padding-top:4px;}
-  .nav-item{display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:6px; color:var(--text-0); font-size:13px; font-weight:600; cursor:pointer; position:relative; transition:background .12s ease, color .12s ease; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-  .nav-item svg{flex-shrink:0; opacity:1; width:18px; height:18px;}
-  .nav-item svg circle, .nav-item svg path, .nav-item svg rect{fill:var(--text-1);}
-  .nav-item:hover{background:var(--bg-2); color:var(--text-0);} 
-  .nav-item.active{background:transparent; color:var(--cyan);}
-  .nav-item .label{overflow:hidden; text-overflow:ellipsis; display:block;}
-
-  /* when collapsed hide labels (only via user toggle) */
-  .app.collapsed .nav-item .label{display:none}
-  .app.collapsed .nav-section-label{display:none}
-
-  /* Force labels visible on desktop when NOT collapsed */
-  @media (min-width: 981px) {
-    .app:not(.collapsed) .nav-section-label,
-    .app:not(.collapsed) .nav-item .label {
-      display: block !important;
-      opacity: 1 !important;
-      visibility: visible !important;
-    }
-    .app { --sidebar-width:280px; }
-  }
-
-  /* ---------- MAIN ---------- */
-  .main{
-    grid-area:main;
-    overflow:auto;
-    position:relative;
-    background:
-      radial-gradient(ellipse 900px 500px at 15% -10%, rgba(79,217,236,0.05), transparent 60%),
-      var(--bg-0);
-    min-width:0; min-height:0;
-  }
-  .view{display:none; height:100%;}
-  .view.active{display:block;}
-
-  /* ensure content areas can shrink inside grid */
-  .page-head, .content, .panel, .stat-grid, .dash-row { min-width:0; }
-
-  .page-head{padding:22px 28px 16px; border-bottom:1px solid var(--panel-border-soft); display:flex; align-items:flex-end; justify-content:space-between;}
-  .page-eyebrow{font-size:10px; letter-spacing:1.4px; text-transform:uppercase; color:var(--cyan); font-weight:600; margin-bottom:6px;}
-  .page-title{font-size:21px; font-weight:700; letter-spacing:-0.3px;}
-  .page-sub{color:var(--text-2); font-size:12px; margin-top:4px; max-width:560px; line-height:1.5;}
-
-  .content{padding:24px 28px 60px;}
-
-  /* ---------- STATUS BAR ---------- */
-  .status{grid-area:status; background:var(--bg-1); border-top:1px solid var(--panel-border-soft); display:flex; align-items:center; gap:18px; padding:0 14px; font-size:10.5px; color:var(--text-2); font-family:var(--mono);}
-  .status .seg{display:flex; align-items:center; gap:6px;} .status .seg .sq{width:6px;height:6px;border-radius:1px;} .status .spacer{flex:1;} .status strong{color:var(--text-0); font-weight:600;}
-
-  /* ================= DASHBOARD ================= */
-  .stat-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--panel-border-soft); border:1px solid var(--panel-border-soft); border-radius:8px; overflow:hidden; margin-bottom:20px;}
-  .stat-cell{background:var(--bg-1); padding:16px 18px;}
-  .stat-label{font-size:10px; letter-spacing:0.6px; text-transform:uppercase; color:var(--text-2); margin-bottom:9px; display:flex; align-items:center; justify-content:space-between;}
-  .stat-value{font-family:var(--mono); font-size:26px; font-weight:600; color:var(--text-0); line-height:1;}
-
-  .dash-row{display:grid; grid-template-columns:1.4fr 1fr; gap:16px; margin-bottom:16px;}
-  .panel{background:var(--bg-1); border:1px solid var(--panel-border-soft); border-radius:8px; overflow:hidden;}
-  .panel-head{display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid var(--panel-border-soft);} .panel-title{font-size:11.5px; font-weight:600; letter-spacing:0.2px;}
-  .panel-body{padding:16px;}
-
-  /* small responsive tweaks — keep labels visible but slightly narrower */
-  @media (max-width:980px){
-    .app{ --sidebar-width:120px; }
-    .sidebar{ padding:8px 6px; }
-    .search-pill{display:none}
-    .nav-item{font-size:12px;}
-  }
-
-  /* resizer handle */
-  .sidebar-resizer{
-    position:fixed; top:44px; bottom:26px; left:calc(var(--sidebar-width) - 3px); width:6px; cursor:col-resize; z-index:75; background:transparent;
-  }
-  .sidebar-resizer:hover{background:rgba(255,255,255,0.02);} 
-  .sidebar-resizer:focus{outline:2px solid rgba(79,217,236,0.18);} 
-
+  /* Responsive: allow collapse on small screens (but desktop forced visible via media query above) */
+  @media (max-width:980px){ .app{ --sidebar-width:120px; } .sidebar{ padding:8px 6px; } }
 </style>
 </head>
 <body>
@@ -218,156 +87,122 @@
   <div class="toolbar">
     <div class="brand">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="18" height="18" rx="3" fill="#0F1720"/></svg>
-      <div>
-        QuantumRISC <small>Studio</small>
-      </div>
+      <div>QuantumRISC <small style="display:block;color:var(--text-2);font-size:9px;">Studio</small></div>
     </div>
-    <div class="tool-group">
-      <button id="sidebar-toggle" class="tbtn" title="Toggle sidebar">☰</button>
-    </div>
-    <div class="toolbar-spacer"></div>
-    <div class="search-pill">Search <kbd>⌘K</kbd></div>
+    <div class="tool-group"><button id="sidebar-toggle" class="tbtn" title="Toggle sidebar">☰</button></div>
+    <div style="flex:1"></div>
   </div>
 
-  <div class="sidebar" id="sidebar">
+  <!-- Sidebar: mark with role and data attributes; include full nav items inline so DOM always contains them -->
+  <nav class="sidebar" id="sidebar" role="navigation" aria-label="Main navigation">
     <div class="nav-section-label">Navigation</div>
-    <div class="nav-item active"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg><div class="label">Overview</div></div>
-    <div class="nav-item"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/></svg><div class="label">Pipeline</div></div>
-    <div class="nav-item"><svg viewBox="0 0 24 24"><path d="M4 12h16" stroke-width="0"/></svg><div class="label">Registers</div></div>
-    <div class="nav-item"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"/></svg><div class="label">Memory</div></div>
-    <div class="nav-item"><svg viewBox="0 0 24 24"><path d="M3 3h18v18H3z"/></svg><div class="label">Cache</div></div>
-    <div class="nav-item"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/></svg><div class="label">Waveforms</div></div>
-    <div class="nav-item"><svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg><div class="label">Performance</div></div>
-    <div class="nav-item"><svg viewBox="0 0 24 24"><path d="M4 4h16v4H4z"/></svg><div class="label">Verification</div></div>
-    <div class="nav-item"><svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/></svg><div class="label">FPGA</div></div>
-    <div class="nav-item"><svg viewBox="0 0 24 24"><path d="M12 3v18"/></svg><div class="label">Settings</div></div>
-  </div>
-
-  <div class="main" id="main">
-    <div class="view active" id="overviewView">
-      <div class="page-head">
-        <div>
-          <div class="page-eyebrow">Overview</div>
-          <div class="page-title">CPU Status Center</div>
-          <div class="page-sub">Live architectural state of the QuantumRISC 5-stage in-order core.</div>
-        </div>
-        <div class="state-pill state-RUNNING"><span class="sq"></span>RUNNING</div>
-      </div>
-      <div class="content">
-        <div class="stat-grid">
-          <div class="stat-cell">
-            <div class="stat-label">Clock Cycle</div>
-            <div class="stat-value">0<span class="unit">/ 0</span></div>
-            <div class="stat-foot">Program counter <b style="color:var(--text-1)">0x0000</b></div>
-          </div>
-          <div class="stat-cell">
-            <div class="stat-label">Current Instruction</div>
-            <div class="stat-value" style="font-size:17px; font-family:var(--mono);">-</div>
-            <div class="stat-foot">Executing in EX stage</div>
-          </div>
-          <div class="stat-cell">
-            <div class="stat-label">Pipeline Occupancy</div>
-            <div class="stat-value">0<span class="unit">/ 5 stages</span></div>
-            <div class="occ-track" style="margin-top:10px;"><div class="occ-seg"></div><div class="occ-seg"></div><div class="occ-seg"></div><div class="occ-seg"></div><div class="occ-seg"></div></div>
-          </div>
-          <div class="stat-cell">
-            <div class="stat-label">Instruction Throughput</div>
-            <div class="stat-value">0<span class="unit">IPC</span></div>
-            <div class="stat-foot up">0 of 0 retired</div>
-          </div>
-        </div>
-
-        <div class="dash-row">
-          <div class="panel">
-            <div class="panel-head"><div class="panel-title">Execution Status<span class="tag">retire log</span></div></div>
-            <div class="panel-body">
-              <div style="color:var(--text-2); font-size:11.5px; padding:6px 0;">No instructions retired yet.</div>
-            </div>
-          </div>
-
-          <div class="panel">
-            <div class="panel-head"><div class="panel-title">Simulation Health</div></div>
-            <div class="panel-body">
-              <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
-                <div style="width:9px;height:9px;border-radius:50%; background:var(--green); box-shadow:0 0 8px var(--green); animation:pulse 1.6s infinite;"></div>
-                <div style="color:var(--text-1)">Healthy</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-      </div>
+    <div class="nav-list" id="navList">
+      <div class="nav-item" data-nav="overview"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg><div class="label">Dashboard</div></div>
+      <div class="nav-item" data-nav="pipeline"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/></svg><div class="label">Pipeline</div></div>
+      <div class="nav-item" data-nav="registers"><svg viewBox="0 0 24 24"><path d="M4 12h16"/></svg><div class="label">Registers</div></div>
+      <div class="nav-item" data-nav="memory"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"/></svg><div class="label">Memory</div></div>
+      <div class="nav-item" data-nav="cache"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/></svg><div class="label">Cache</div></div>
+      <div class="nav-item" data-nav="waveforms"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/></svg><div class="label">Waveforms</div></div>
+      <div class="nav-item" data-nav="performance"><svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg><div class="label">Performance</div></div>
+      <div class="nav-item" data-nav="verification"><svg viewBox="0 0 24 24"><path d="M4 4h16v4H4z"/></svg><div class="label">Verification</div></div>
+      <div class="nav-item" data-nav="fpga"><svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/></svg><div class="label">FPGA</div></div>
+      <div class="nav-item" data-nav="settings"><svg viewBox="0 0 24 24"><path d="M12 3v18"/></svg><div class="label">Settings</div></div>
     </div>
-  </div>
+  </nav>
 
-  <div class="status">
-    <div class="seg">Status: <strong>Idle</strong></div>
-    <div class="spacer"></div>
-    <div class="seg">Backend: <span style="color:var(--green)">Connected</span></div>
-  </div>
+  <main class="main" id="main">
+    <div style="padding:24px;">
+      <h2 style="margin-bottom:8px;color:var(--cyan);font-size:12px;text-transform:uppercase;">Overview</h2>
+      <h1 style="font-size:22px;margin-bottom:6px;">CPU Status Center</h1>
+      <p style="color:var(--text-2);max-width:70%">Live architectural state of the QuantumRISC 5-stage in-order core.</p>
+    </div>
+  </main>
 
-  <!-- resizer handle -->
-  <div class="sidebar-resizer" id="sidebarResizer" tabindex="0" aria-label="Resize sidebar" role="separator" aria-orientation="vertical"></div>
+  <div class="status" id="status">Status: <strong style="margin-left:8px;color:var(--text-0)">Idle</strong></div>
 </div>
 
 <script>
+// Robustness script: ensure nav exists and restore if removed by third-party scripts
 (function(){
-  const app = document.getElementById('appRoot');
+  const sidebar = document.getElementById('sidebar');
+  const navList = document.getElementById('navList');
   const toggle = document.getElementById('sidebar-toggle');
-  const resizer = document.getElementById('sidebarResizer');
-  const minW = 160; const maxW = 420; const collapsedW = 56;
+  const app = document.getElementById('appRoot');
 
-  // Ensure expanded by default on load so labels are visible
-  // Do not auto-collapse; only user toggle should collapse
-  document.addEventListener('DOMContentLoaded', ()=>{ app.classList.remove('collapsed'); window.requestAnimationFrame(()=>{ resizer.style.left = `calc(var(--sidebar-width) - 3px)`; }); });
+  // Template of nav items (kept in JS so we can restore if anything removes them)
+  const navTemplate = [
+    {key:'overview', label:'Dashboard'},
+    {key:'pipeline', label:'Pipeline'},
+    {key:'registers', label:'Registers'},
+    {key:'memory', label:'Memory'},
+    {key:'cache', label:'Cache'},
+    {key:'waveforms', label:'Waveforms'},
+    {key:'performance', label:'Performance'},
+    {key:'verification', label:'Verification'},
+    {key:'fpga', label:'FPGA'},
+    {key:'settings', label:'Settings'},
+  ];
 
-  function isCollapsed(){ return app.classList.contains('collapsed'); }
-  toggle.addEventListener('click', ()=>{
-    app.classList.toggle('collapsed');
-    // update resizer position
-    requestAnimationFrame(()=>{ resizer.style.left = `calc(var(--sidebar-width) - 3px)`; });
+  function buildNavItem(def){
+    const item = document.createElement('div');
+    item.className = 'nav-item';
+    item.setAttribute('data-nav', def.key);
+    const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+    svg.setAttribute('viewBox','0 0 24 24'); svg.setAttribute('width','18'); svg.setAttribute('height','18');
+    const rect = document.createElementNS('http://www.w3.org/2000/svg','rect'); rect.setAttribute('x','3'); rect.setAttribute('y','3'); rect.setAttribute('width','18'); rect.setAttribute('height','18'); rect.setAttribute('rx','2'); rect.setAttribute('fill','none');
+    // use simple circle for uniqueness for overview
+    if(def.key==='overview'){
+      const c = document.createElementNS('http://www.w3.org/2000/svg','circle'); c.setAttribute('cx','12'); c.setAttribute('cy','12'); c.setAttribute('r','10'); c.setAttribute('fill','currentColor'); svg.appendChild(c);
+    } else {
+      svg.appendChild(rect);
+    }
+    const label = document.createElement('div'); label.className = 'label'; label.textContent = def.label;
+    item.appendChild(svg);
+    item.appendChild(label);
+    // click handler: mark active
+    item.addEventListener('click', ()=>{ document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active')); item.classList.add('active'); });
+    return item;
+  }
+
+  function restoreNavIfMissing(){
+    if(!navList) return; // nothing we can do
+    // If there are no nav-item children or fewer than expected, rebuild
+    const items = navList.querySelectorAll('.nav-item');
+    if(items.length < navTemplate.length){
+      // clear and rebuild
+      navList.innerHTML = '';
+      for(const def of navTemplate){ navList.appendChild(buildNavItem(def)); }
+      console.info('[Studio] Sidebar navigation restored');
+    }
+  }
+
+  // Run once on load
+  document.addEventListener('DOMContentLoaded', ()=>{
+    // ensure not collapsed by third-party script
+    app.classList.remove('collapsed');
+    restoreNavIfMissing();
   });
 
-  // Resizer drag
-  let dragging = false;
-  resizer.addEventListener('mousedown', (e)=>{
-    dragging = true; document.body.style.userSelect='none';
+  // Observe mutations on sidebar and restore if nav items are removed
+  const mo = new MutationObserver((records)=>{
+    for(const r of records){
+      if(r.type==='childList'){
+        // if navList lost children, restore
+        if(!navList.querySelector('.nav-item')){ restoreNavIfMissing(); }
+      }
+    }
   });
-  window.addEventListener('mouseup', ()=>{ dragging=false; document.body.style.userSelect='auto'; });
-  window.addEventListener('mousemove', (e)=>{
-    if(!dragging) return;
-    let x = e.clientX; // left position
-    // clamp
-    const w = Math.min(maxW, Math.max(minW, x));
-    app.style.setProperty('--sidebar-width', w + 'px');
-    resizer.style.left = (w - 3) + 'px';
-    // ensure not collapsed state
-    if(app.classList.contains('collapsed')) app.classList.remove('collapsed');
-  });
+  mo.observe(sidebar, { childList:true, subtree:true });
 
-  // Touch support
-  resizer.addEventListener('touchstart', (e)=>{ dragging=true; });
-  window.addEventListener('touchend', ()=>{ dragging=false; });
-  window.addEventListener('touchmove', (e)=>{
-    if(!dragging) return; const t = e.touches[0]; let x = t.clientX; const w = Math.min(maxW, Math.max(minW, x)); app.style.setProperty('--sidebar-width', w + 'px'); resizer.style.left = (w - 3) + 'px'; if(app.classList.contains('collapsed')) app.classList.remove('collapsed');
-  });
+  // Also periodic sanity check in case of aggressive scripts
+  setInterval(restoreNavIfMissing, 2000);
 
-  // Update resizer position on resize and load
-  function updateResizer(){ resizer.style.left = `calc(var(--sidebar-width) - 3px)`; }
-  window.addEventListener('resize', updateResizer);
-  updateResizer();
+  // Toggle collapse behavior: only user toggle should collapse
+  toggle.addEventListener('click', ()=>{ app.classList.toggle('collapsed'); });
 
-  // keyboard support for resizer
-  resizer.addEventListener('keydown', (e)=>{
-    const step = 8;
-    if(e.key==='ArrowLeft' || e.key==='ArrowDown'){ e.preventDefault(); adjust(-step); }
-    if(e.key==='ArrowRight' || e.key==='ArrowUp'){ e.preventDefault(); adjust(step); }
-    function adjust(delta){ let cur = parseInt(getComputedStyle(app).getPropertyValue('--sidebar-width')) || 280; let nw = Math.min(maxW, Math.max(minW, cur + delta)); app.style.setProperty('--sidebar-width', nw + 'px'); updateResizer(); }
-  });
-
-  // Ensure no horizontal overflow on small screens
-  const observer = new ResizeObserver(()=>{ document.documentElement.style.overflowX='hidden'; });
-  observer.observe(document.body);
+  // Prevent accidental external styles from hiding labels: re-apply inline styles
+  function enforceInlineStyles(){ document.querySelectorAll('.nav-item .label').forEach(el=>{ el.style.display='block'; el.style.visibility='visible'; el.style.opacity='1'; }); }
+  setInterval(enforceInlineStyles, 1500);
 })();
 </script>
 </body>
