@@ -54,9 +54,10 @@
   ::-webkit-scrollbar-thumb:hover{background:#38404A;}
 
   .app{
+    --sidebar-width: 280px;
     display:grid;
     grid-template-rows:44px minmax(0,1fr) 26px;
-    grid-template-columns:224px minmax(0,1fr);
+    grid-template-columns:var(--sidebar-width) minmax(0,1fr);
     grid-template-areas:
       "toolbar toolbar"
       "sidebar main"
@@ -184,6 +185,7 @@
     padding:10px 8px 16px;
     min-height:0;
     min-width:0;
+    width: var(--sidebar-width, 280px);
   }
   .nav-section-label{
     font-size:9.5px;
@@ -192,6 +194,9 @@
     text-transform:uppercase;
     font-weight:600;
     padding:14px 10px 6px;
+    display:block;
+    visibility:visible;
+    opacity:1;
   }
   .nav-section-label:first-child{padding-top:4px;}
   .nav-item{
@@ -205,6 +210,9 @@
     position:relative;
     transition:background .12s ease, color .12s ease;
     white-space:nowrap;
+    display:flex;
+    visibility:visible;
+    opacity:1;
   }
   .nav-item svg{flex-shrink:0; opacity:0.85;}
   .nav-item:hover{background:var(--bg-2); color:var(--text-0);}
@@ -1033,25 +1041,34 @@ function pcHex(cycle){
 let activeView = 'dashboard';
 
 function renderSidebar(){
-  const el = document.getElementById('sidebar');
-  el.innerHTML = NAV.map(sec=>`
-    <div class="nav-section-label">${sec.section}</div>
-    ${sec.items.map(it=>`
-      <div class="nav-item ${it.id===activeView?'active':''}" data-nav="${it.id}">
-        ${ICONS[it.icon]}
-        <span>${it.label}</span>
-        ${it.live ? '<span class="live-pulse"></span>' : ''}
-      </div>
-    `).join('')}
-  `).join('');
-  el.querySelectorAll('[data-nav]').forEach(node=>{
-    node.addEventListener('click', ()=>{ 
-      activeView = node.dataset.nav; 
-      renderAll(); 
-      const sidebar = document.getElementById('sidebar');
-      if (sidebar) sidebar.classList.remove('open');
+  try {
+    const el = document.getElementById('sidebar');
+    if (!el) {
+      console.error('Sidebar element not found!');
+      return;
+    }
+    el.innerHTML = NAV.map(sec=>`
+      <div class="nav-section-label">${sec.section}</div>
+      ${sec.items.map(it=>`
+        <div class="nav-item ${it.id===activeView?'active':''}" data-nav="${it.id}">
+          ${ICONS[it.icon] || ''}
+          <span>${it.label}</span>
+          ${it.live ? '<span class="live-pulse"></span>' : ''}
+        </div>
+      `).join('')}
+    `).join('');
+    el.querySelectorAll('[data-nav]').forEach(node=>{
+      node.addEventListener('click', ()=>{ 
+        activeView = node.dataset.nav; 
+        renderAll(); 
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar) sidebar.classList.remove('open', 'collapsed');
+      });
     });
-  });
+    el.classList.remove('collapsed');
+  } catch (err) {
+    console.error('Error rendering sidebar:', err);
+  }
 }
 
 /* =====================================================================
@@ -2236,6 +2253,12 @@ document.addEventListener('keydown', e=>{
 /* =====================================================================
    INIT
 ===================================================================== */
+try {
+  renderAll();
+} catch (err) {
+  console.error("Initialization failed:", err);
+  renderSidebar(); // defensive rebuild
+}
 </script>
 <script src="/studio/static/backend-bridge.js"></script>
 </body>
