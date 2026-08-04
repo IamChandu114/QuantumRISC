@@ -414,7 +414,7 @@
       title.style.cssText = "color: var(--red); font-size: 20px; font-weight: 700; margin-bottom: 8px;";
       
       const desc = document.createElement("p");
-      desc.textContent = "Unable to connect to the simulation backend. Please ensure the backend is running and configured correctly.";
+      desc.innerHTML = `Unable to connect to the simulation backend at <strong style="color:var(--text-0)">${getApiBaseUrl()}</strong>.<br><br>Please ensure the backend is running and configured correctly.`;
       desc.style.cssText = "color: var(--text-1); font-size: 13px; line-height: 1.5; margin-bottom: 24px;";
       
       const label = document.createElement("label");
@@ -424,13 +424,13 @@
       const input = document.createElement("input");
       input.type = "text";
       input.id = "offline-api-url-input";
-      input.placeholder = "e.g. https://quantumrisc-production.up.railway.app";
+      input.placeholder = "e.g. " + window.location.origin;
       input.style.cssText = `
         width: 100%; height: 36px; background: var(--bg-2); border: 1px solid var(--panel-border);
         border-radius: 6px; padding: 0 12px; box-sizing: border-box; color: var(--text-0);
         font-family: var(--mono); font-size: 12px; margin-bottom: 16px; outline: none;
       `;
-      input.value = localStorage.getItem("QUANTUMRISC_API_URL") || "";
+      input.value = localStorage.getItem("QUANTUMRISC_API_URL") || window.location.origin;
       
       const btn = document.createElement("button");
       btn.textContent = "Save & Reconnect";
@@ -460,7 +460,7 @@
       overlay.appendChild(card);
       document.body.appendChild(overlay);
     }
-    document.getElementById("offline-api-url-input").value = localStorage.getItem("QUANTUMRISC_API_URL") || "";
+    document.getElementById("offline-api-url-input").value = localStorage.getItem("QUANTUMRISC_API_URL") || window.location.origin;
     overlay.style.display = "flex";
   }
 
@@ -469,7 +469,7 @@
       try { state.ws.close(); } catch(e) {}
     }
     const apiBase = getApiBaseUrl();
-    const wsProto = apiBase.startsWith("https") ? "wss" : "ws";
+    const wsProto = apiBase.startsWith("https") || window.location.protocol === "https:" ? "wss" : "ws";
     const wsBase = apiBase.replace(/^https?:\/\//, "");
     const wsUrl = `${wsProto}://${wsBase}/ws/sessions/${state.session.id}`;
 
