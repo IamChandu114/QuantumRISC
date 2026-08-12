@@ -110,8 +110,15 @@ export class BackendBridge {
 
   // ----------------------------------------------------------------- REST API
 
+  /** REST API base URL — uses VITE_API_URL in production, window.origin in dev. */
   private apiBase(): string {
-    return window.location.origin;
+    return (import.meta.env["VITE_API_URL"] as string | undefined) ?? window.location.origin;
+  }
+
+  /** WebSocket base URL — derived from apiBase, swapping http(s) for ws(s). */
+  private wsBase(): string {
+    const base = this.apiBase();
+    return base.replace(/^https:\/\//, "wss://").replace(/^http:\/\//, "ws://");
   }
 
   async compileAndRun(): Promise<void> {
@@ -219,8 +226,7 @@ export class BackendBridge {
 
   private openWs(sessionId: string): void {
     this.closeWs();
-    const proto = location.protocol === "https:" ? "wss" : "ws";
-    const ws = new WebSocket(`${proto}://${location.host}/ws/sessions/${sessionId}`);
+    const ws = new WebSocket(`${this.wsBase()}/ws/sessions/${sessionId}`);
     this.ws = ws;
 
     ws.onmessage = (event: MessageEvent<string>) => {

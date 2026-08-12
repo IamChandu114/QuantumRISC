@@ -57,8 +57,11 @@ def get_settings() -> Settings:
     else:
         vvp_path = shutil.which("vvp") or "vvp"
 
-    # CORS configuration
-    cors_raw = os.getenv("CORS_ORIGINS", "*")
+    # CORS configuration — default allows Vercel frontend + wildcard for local dev
+    cors_raw = os.getenv(
+        "CORS_ORIGINS",
+        "https://quantum-risc.vercel.app,https://quantum-risc-*.vercel.app,http://localhost:5173,http://localhost:8000,*"
+    )
     if cors_raw == "*":
         cors_origins = ["*"]
     else:
