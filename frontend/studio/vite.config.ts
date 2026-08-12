@@ -8,7 +8,6 @@ import path from "path";
 /**
  * QuantumRISC Studio v3 — Vite SPA Configuration
  *
- * Replaces the Lovable.dev TanStack Start wrapper with a standard
  * Vite + React + TanStack Router client-side SPA build.
  * Output: dist/index.html + dist/assets/ served by the FastAPI backend.
  */

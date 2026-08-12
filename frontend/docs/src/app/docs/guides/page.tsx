@@ -70,8 +70,8 @@ export default function GuidesPage() {
             <div>
               <h3 className="font-mono font-semibold mb-2 text-sm">Step 1: Clone Repository</h3>
               <pre className="bg-background p-3 rounded text-xs overflow-x-auto">
-                <code>{`git clone https://github.com/yourname/quantumrisc.git
-cd quantumrisc`}</code>
+                <code>{`git clone https://github.com/IamChandu114/QuantumRISC.git
+cd QuantumRISC`}</code>
               </pre>
             </div>
             <div>

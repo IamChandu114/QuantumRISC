@@ -24,7 +24,7 @@ function DashboardPage() {
   return (
     <div className="grid min-h-0 grid-cols-1 gap-3 xl:grid-cols-12">
       <Panel
-        title="Core 0 — RV32I scalar"
+        title={`Core 0 — ${state.backendTop || "RV32I scalar"}`}
         subtitle={`${state.frequencyMhz} MHz · in-order · single issue`}
         className="xl:col-span-8"
         actions={<Chip tone={state.running ? "good" : "default"}>{state.running ? "RUNNING" : "HALTED"}</Chip>}

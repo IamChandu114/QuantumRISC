@@ -57,8 +57,8 @@ export function StatusBar() {
           {backendLabel(state.backendStatus, state.backendSessionId)}
         </span>
       </div>
-      <div className="mono-num shrink-0 text-[10px] text-muted-foreground/50">
-        rv32i · in-order · 5-stage
+      <div className="mono-num shrink-0 text-[10px] text-muted-foreground/50 uppercase">
+        {state.backendTop ? `${state.backendTop} · live hardware` : "rv32i · built-in model"}
       </div>
     </footer>
   );

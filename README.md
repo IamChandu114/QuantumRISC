@@ -20,7 +20,7 @@
 | Website | `http://127.0.0.1:8000/` |
 | QuantumRISC Studio | `http://127.0.0.1:8000/studio` |
 | Documentation | `http://127.0.0.1:8000/docs` |
-| GitHub Discussions | `https://github.com` |
+| GitHub Discussions | `https://github.com/IamChandu114/QuantumRISC` |
 | Medium Engineering Series | `https://medium.com/@ca4443700` |
 
 ## Executive Summary

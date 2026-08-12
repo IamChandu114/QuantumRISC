@@ -28,6 +28,8 @@ export interface StudioState {
   backendStatus: BackendStatus;
   /** Backend session ID (short display form). */
   backendSessionId: string | null;
+  /** Backend top module name. */
+  backendTop: string | null;
 }
 
 const STORAGE_KEY = "quantumrisc.studio.layout.v2";
@@ -62,6 +64,7 @@ class StudioStore {
     notifications: [],
     backendStatus: "connecting",
     backendSessionId: null,
+    backendTop: null,
     ...loadLayout(),
   };
 
@@ -78,6 +81,8 @@ class StudioStore {
         backendStatus: status,
         backendSessionId:
           status === "connected" ? (this.bridge.currentSession?.id.slice(0, 8) ?? null) : this.state.backendSessionId,
+        backendTop:
+          status === "connected" ? (this.bridge.currentSession?.top ?? null) : this.state.backendTop,
       });
     };
 

@@ -97,7 +97,7 @@ export function Sidebar() {
         {!collapsed && (
           <div className="min-w-0">
             <div className="truncate text-[13px] font-semibold tracking-tight">QuantumRISC Studio</div>
-            <div className="mono-num truncate text-[10px] text-muted-foreground">RV32I · 5-stage in-order</div>
+            <div className="mono-num truncate text-[10px] text-muted-foreground">{state.backendTop ? `Arch · ${state.backendTop}` : "RV32I · 5-stage in-order"}</div>
           </div>
         )}
       </div>

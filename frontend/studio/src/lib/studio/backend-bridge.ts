@@ -39,7 +39,23 @@ interface BackendSnapshot {
     forwards?: number;
     flushes?: number;
   };
-  registers?: Array<{ reg: string; val: number | string } | null>;
+  registers?: Array<{ index: number; name: string; abi: string; value: string } | null>;
+  pipeline?: {
+    pc: string;
+    instruction: string;
+    opcode: string;
+    rs1: string;
+    rs2: string;
+    rd: string;
+    immediate: string;
+    alu_result: string;
+    writeback_data: string;
+    regwrite: string;
+  };
+  memory?: {
+    base: string;
+    words: Array<{ address: string; value: string }>;
+  };
   hazards?: Array<{ type?: string; from?: number; to?: number; resolved?: string; kind?: string }>;
   forwarding?: Array<{ from?: number; to?: number; type?: string }>;
   waveforms?: { timeline?: unknown[]; cursor?: number };
@@ -256,33 +272,47 @@ export class BackendBridge {
 
   /**
    * Maps backend snapshot data onto the in-browser simulator state.
-   * Only fields that the backend actually provides are overwritten — the
-   * in-browser model remains authoritative for anything the backend omits.
+   * Overwrites the internal mock state with actual backend trace data.
    */
   static applySnapshot(sim: Simulator, snap: BackendSnapshot): void {
-    // Registers (x0–x31 from backend register file)
+    // Registers (x0–x31) — backend produces [{index, name, abi, value: "0xHHHH"}]
     if (snap.registers && Array.isArray(snap.registers)) {
       for (const entry of snap.registers) {
         if (!entry) continue;
-        const match = /^x(\d+)$/.exec(entry.reg);
-        if (!match) continue;
-        const idx = parseInt(match[1]!, 10);
-        if (idx >= 1 && idx < 32) {
-          sim.regs[idx] = Number(entry.val) | 0;
+        const idx = entry.index;
+        if (idx >= 1 && idx < 32 && entry.value) {
+          const val = parseInt(entry.value.replace(/^0x/i, ""), 16);
+          if (!isNaN(val)) sim.regs[idx] = val | 0;
         }
       }
     }
 
-    // Metrics
+    // Pipeline — update the in-browser PC from the backend trace
+    if (snap.pipeline) {
+      const pcStr = snap.pipeline.pc ?? "0x0";
+      const pc = parseInt(pcStr.replace(/^0x/i, ""), 16);
+      if (!isNaN(pc) && pc > 0) sim.pc = pc >>> 0;
+    }
+
+    // Memory — backend produces { base: "0x…", words: [{address, value}] }
+    if (snap.memory && Array.isArray(snap.memory.words)) {
+      for (const word of snap.memory.words) {
+        const addr = parseInt(word.address.replace(/^0x/i, ""), 16);
+        const val  = parseInt(word.value.replace(/^0x/i, ""), 16);
+        if (!isNaN(addr) && !isNaN(val)) sim.writeWord(addr, val);
+      }
+    }
+
+    // Metrics — backend produces {cycles, ipc, cpi, stalls, retired, forwards, flushes}
     if (snap.metrics) {
       const m = snap.metrics;
-      if (m.cycles != null) sim.metrics.cycles = m.cycles;
-      if (m.retired != null) sim.metrics.retired = m.retired;
-      if (m.ipc != null) sim.metrics.ipc = m.ipc;
-      if (m.cpi != null) sim.metrics.cpi = m.cpi;
-      if (m.stalls != null) sim.metrics.stallCycles = m.stalls;
-      if (m.forwards != null) sim.metrics.forwards = m.forwards;
-      if (m.flushes != null) sim.metrics.flushes = m.flushes;
+      if (m.cycles  != null) { sim.metrics.cycles      = m.cycles;  sim.cycle = m.cycles; }
+      if (m.retired != null)   sim.metrics.retired      = m.retired;
+      if (m.ipc     != null)   sim.metrics.ipc          = m.ipc;
+      if (m.cpi     != null)   sim.metrics.cpi          = m.cpi;
+      if (m.stalls  != null)   sim.metrics.stallCycles  = m.stalls;
+      if (m.forwards!= null)   sim.metrics.forwards     = m.forwards;
+      if (m.flushes != null)   sim.metrics.flushes      = m.flushes;
     }
   }
 
