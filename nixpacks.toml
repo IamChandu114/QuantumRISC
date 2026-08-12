@@ -1,0 +1,12 @@
+# Railway Nixpacks build configuration
+# This is an alternative to Dockerfile — Railway will automatically
+# install Icarus Verilog and Python dependencies, then run the FastAPI app.
+
+[phases.setup]
+nixPkgs = ["python311", "iverilog"]
+
+[phases.install]
+cmds = ["pip install -r backend/requirements.txt"]
+
+[start]
+cmd = "cd backend && python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT"

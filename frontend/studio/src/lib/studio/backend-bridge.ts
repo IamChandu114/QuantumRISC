@@ -112,7 +112,7 @@ export class BackendBridge {
 
   /** REST API base URL — uses VITE_API_URL in production, window.origin in dev. */
   private apiBase(): string {
-    return (import.meta.env["VITE_API_URL"] as string | undefined) ?? window.location.origin;
+    return (import.meta.env.VITE_API_URL as string) ?? window.location.origin;
   }
 
   /** WebSocket base URL — derived from apiBase, swapping http(s) for ws(s). */
