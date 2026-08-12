@@ -10,9 +10,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from backend.app.api.routes import build_router
-from backend.app.config.settings import get_settings
-from backend.app.sessions.manager import SessionManager
+from app.api.routes import build_router
+from app.config.settings import get_settings
+from app.sessions.manager import SessionManager
 
 
 # Setup structured logging
@@ -46,8 +46,13 @@ app.include_router(build_router(manager))
 
 website_dist = settings.frontend_root / "website" / "dist"
 docs_dist = settings.frontend_root / "docs" / "dist"
-if (settings.frontend_root / "studio").exists():
-    app.mount("/studio/static", StaticFiles(directory=str(settings.frontend_root / "studio")), name="studio-static")
+studio_dist = settings.frontend_root / "studio" / "dist"
+
+if studio_dist.exists():
+    app.mount("/studio/assets", StaticFiles(directory=str(studio_dist / "assets")), name="studio-assets")
+elif (settings.frontend_root / "studio" / "public").exists():
+    app.mount("/studio/static", StaticFiles(directory=str(settings.frontend_root / "studio" / "public")), name="studio-static")
+
 if (settings.frontend_root / "website").exists():
     app.mount("/website/static", StaticFiles(directory=str(settings.frontend_root / "website")), name="website-static")
 if website_dist.exists():
@@ -101,8 +106,10 @@ async def root():
 
 
 @app.get("/studio")
-async def studio():
-    path = settings.frontend_root / "studio" / "quantumrisc-studio.html"
+@app.get("/studio/")
+@app.get("/studio/{path:path}")
+async def studio(path: str = ""):
+    path = settings.frontend_root / "studio" / "dist" / "index.html"
     return FileResponse(str(path)) if path.exists() else {"ok": True}
 
 

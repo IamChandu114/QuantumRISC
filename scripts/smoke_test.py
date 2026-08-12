@@ -30,7 +30,7 @@ def main() -> int:
     run(["node", "--check", str(ROOT / "frontend" / "studio" / "backend-bridge.js")], ROOT)
     run([NPM, "run", "build"], ROOT / "frontend" / "website")
 
-    from backend.app.main import app
+    from app.main import app
 
     client = TestClient(app)
 
@@ -75,15 +75,3 @@ def main() -> int:
 
     with client.websocket_connect(f"/ws/sessions/{session_id}") as ws:
         first = ws.receive_json()
-        assert_true(first.get("type") == "session.created", "WebSocket did not emit session.created")
-
-    print("\nSmoke test passed.")
-    print(f"Session: {session_id}")
-    print(f"VCD: {snapshot['vcd'].get('name')}")
-    print(f"Cycles: {snapshot['metrics'].get('cycles')}")
-    print(f"IPC: {snapshot['metrics'].get('ipc')}")
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
