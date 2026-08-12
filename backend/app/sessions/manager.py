@@ -9,19 +9,19 @@ from typing import Any
 
 from fastapi.encoders import jsonable_encoder
 
-from backend.app.analyzers.forwarding_analyzer import ForwardingAnalyzer
-from backend.app.analyzers.hazard_analyzer import HazardAnalyzer
-from backend.app.analyzers.metrics_engine import MetricsEngine
-from backend.app.config.settings import Settings
-from backend.app.models.schemas import SessionSnapshot
-from backend.app.sim.compile_manager import CompileManager
-from backend.app.sim.discovery import DiscoveryService
-from backend.app.sim.run_manager import RunManager
-from backend.app.sim.vcd_parser import VCDParser
-from backend.app.trackers.memory_tracker import MemoryTracker
-from backend.app.trackers.pipeline_tracker import PipelineTracker
-from backend.app.trackers.register_tracker import RegisterTracker
-from backend.app.sessions.db import init_db, save_session, load_sessions
+from app.analyzers.forwarding_analyzer import ForwardingAnalyzer
+from app.analyzers.hazard_analyzer import HazardAnalyzer
+from app.analyzers.metrics_engine import MetricsEngine
+from app.config.settings import Settings
+from app.models.schemas import SessionSnapshot
+from app.sim.compile_manager import CompileManager
+from app.sim.discovery import DiscoveryService
+from app.sim.run_manager import RunManager
+from app.sim.vcd_parser import VCDParser
+from app.trackers.memory_tracker import MemoryTracker
+from app.trackers.pipeline_tracker import PipelineTracker
+from app.trackers.register_tracker import RegisterTracker
+from app.sessions.db import init_db, save_session, load_sessions
 
 
 @dataclass

@@ -4,9 +4,10 @@ import json
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
-from backend.app.sessions.manager import SessionRecord
+if TYPE_CHECKING:
+    from app.sessions.manager import SessionRecord
 
 
 def init_db(db_path: Path) -> None:
@@ -40,7 +41,7 @@ def init_db(db_path: Path) -> None:
         conn.close()
 
 
-def save_session(db_path: Path, session: SessionRecord) -> None:
+def save_session(db_path: Path, session: "SessionRecord") -> None:
     conn = sqlite3.connect(str(db_path))
     try:
         cursor = conn.cursor()
@@ -77,10 +78,11 @@ def save_session(db_path: Path, session: SessionRecord) -> None:
         conn.close()
 
 
-def load_sessions(db_path: Path) -> dict[str, SessionRecord]:
+def load_sessions(db_path: Path) -> dict[str, "SessionRecord"]:
     if not db_path.exists():
         return {}
     conn = sqlite3.connect(str(db_path))
+    from app.sessions.manager import SessionRecord
     sessions: dict[str, SessionRecord] = {}
     try:
         conn.row_factory = sqlite3.Row

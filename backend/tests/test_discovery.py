@@ -4,8 +4,8 @@ try:
     from app.config.settings import get_settings
     from app.sim.discovery import DiscoveryService
 except Exception:
-    from backend.app.config.settings import get_settings
-    from backend.app.sim.discovery import DiscoveryService
+    from app.config.settings import get_settings
+    from app.sim.discovery import DiscoveryService
 
 
 def test_discovery_finds_tb():
