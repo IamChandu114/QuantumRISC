@@ -63,9 +63,9 @@ export function Header() {
           </a>
 
           <a
-            href="https://github.com"
+            href="https://github.com/IamChandu114/QuantumRISC"
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
             className="hidden md:inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-foreground hover:bg-accent rounded-md transition-colors"
           >
             <Github size={16} />
