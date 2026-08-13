@@ -18,6 +18,7 @@
  */
 
 import type { Simulator } from "@/lib/sim/core";
+import { resolveBackendApiBase, resolveBackendWsBase } from "@/lib/backend-endpoint";
 
 export type BackendStatus = "connecting" | "connected" | "offline" | "disabled";
 
@@ -141,20 +142,12 @@ export class BackendBridge {
 
   /** REST API base URL — uses VITE_API_URL in production, window.origin in dev. */
   private apiBase(): string {
-    const envUrl = import.meta.env.VITE_API_URL as string | undefined;
-    if (envUrl && envUrl.length > 0) return envUrl;
-    
-    // If deployed to Vercel without env vars, forcefully point to Railway
-    if (typeof window !== "undefined" && window.location.hostname.includes("vercel.app")) {
-      return "https://quantumrisc-production.up.railway.app";
-    }
-    return typeof window !== "undefined" ? window.location.origin : "";
+    return resolveBackendApiBase();
   }
 
   /** WebSocket base URL — derived from apiBase, swapping http(s) for ws(s). */
   private wsBase(): string {
-    const base = this.apiBase();
-    return base.replace(/^https:\/\//, "wss://").replace(/^http:\/\//, "ws://");
+    return resolveBackendWsBase();
   }
 
   async compileAndRun(): Promise<void> {

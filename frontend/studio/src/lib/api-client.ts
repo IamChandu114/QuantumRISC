@@ -1,4 +1,6 @@
-const API_BASE = "http://localhost:8000/api"; // Default dev base url
+import { resolveBackendApiBase } from "./backend-endpoint";
+
+const API_BASE = `${resolveBackendApiBase()}/api`;
 
 function describeHttpStatus(method: string, endpoint: string, status: number): string {
   if (status === 500) {
@@ -14,6 +16,10 @@ function describeHttpStatus(method: string, endpoint: string, status: number): s
 }
 
 export class ApiClient {
+  static async health() {
+    return this.get("/health");
+  }
+
   static async get(endpoint: string) {
     const response = await fetch(`${API_BASE}${endpoint}`);
     if (!response.ok) {

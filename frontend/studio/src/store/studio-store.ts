@@ -5,6 +5,8 @@ import { WsClient } from "../lib/ws-client";
 interface StudioState {
   sessionId: string | null;
   status: string;
+  transportState: "connecting" | "connected" | "reconnecting" | "backend-unavailable" | "websocket-failed" | "closed";
+  transportDetail: string;
   top: string;
   testbench: string;
   isConnected: boolean;
@@ -41,10 +43,24 @@ interface StudioState {
 }
 
 let activeWsClient: WsClient | null = null;
+let bootstrapPromise: Promise<void> | null = null;
+let bootstrapRetryTimer: ReturnType<typeof setTimeout> | null = null;
+let bootstrapRetryDelay = 1_000;
+
+function scheduleBootstrapRetry() {
+  if (bootstrapRetryTimer) clearTimeout(bootstrapRetryTimer);
+  bootstrapRetryTimer = setTimeout(() => {
+    bootstrapRetryTimer = null;
+    bootstrapRetryDelay = Math.min(bootstrapRetryDelay * 2, 15_000);
+    void useStudioStore.getState().initializeSession();
+  }, bootstrapRetryDelay);
+}
 
 export const useStudioStore = create<StudioState>((set, get) => ({
   sessionId: null,
   status: "waiting",
+  transportState: "connecting",
+  transportDetail: "booting",
   top: "",
   testbench: "",
   isConnected: false,
@@ -68,12 +84,29 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   fpga: {},
 
   initializeSession: async (top?: string, testbench?: string) => {
-    try {
-      const resp = await ApiClient.createSession(top, testbench);
-      get().connectSession(resp.id);
-    } catch (e) {
-      console.error("Failed to initialize session", e);
-    }
+    if (bootstrapPromise) return bootstrapPromise;
+    bootstrapPromise = (async () => {
+      try {
+        set({ transportState: "connecting", transportDetail: "probing Railway backend" });
+        await ApiClient.health();
+        const resp = await ApiClient.createSession(top, testbench);
+        bootstrapRetryDelay = 1_000;
+        get().connectSession(resp.id);
+      } catch (e) {
+        console.error("Failed to initialize session", e);
+        set({
+          transportState: "backend-unavailable",
+          transportDetail: "backend unavailable during session bootstrap",
+          isConnected: false,
+          sessionId: null,
+          status: "waiting",
+        });
+        scheduleBootstrapRetry();
+      } finally {
+        bootstrapPromise = null;
+      }
+    })();
+    return bootstrapPromise;
   },
 
   connectSession: (sessionId: string) => {
@@ -81,9 +114,37 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       activeWsClient.disconnect();
     }
     
-    set({ sessionId, status: "connecting", isConnected: false });
+    set({ sessionId, status: "connecting", transportState: "connecting", transportDetail: `session ${sessionId.slice(0, 8)} initializing`, isConnected: false });
     
-    activeWsClient = new WsClient(sessionId);
+    activeWsClient = new WsClient(sessionId, {
+      onStateChange: (state, detail) => {
+        if (state === "connected") {
+          set({ transportState: "connected", transportDetail: `session ${sessionId.slice(0, 8)} live`, isConnected: true });
+          return;
+        }
+        if (state === "connecting") {
+          set({ transportState: "connecting", transportDetail: detail ?? "connecting to Railway backend", isConnected: false });
+          return;
+        }
+        if (state === "reconnecting") {
+          set({ transportState: "reconnecting", transportDetail: detail ?? "reconnecting to Railway backend", isConnected: false });
+          return;
+        }
+        if (state === "backend-unavailable") {
+          set({ transportState: "backend-unavailable", transportDetail: detail ?? "backend unavailable", isConnected: false });
+          scheduleBootstrapRetry();
+          return;
+        }
+        if (state === "websocket-failed") {
+          set({ transportState: "websocket-failed", transportDetail: detail ?? "websocket failed", isConnected: false });
+          return;
+        }
+        set({ transportState: "closed", transportDetail: detail ?? "session closed", isConnected: false });
+      },
+      onDisconnect: () => {
+        set({ transportState: "closed", transportDetail: "session closed", isConnected: false });
+      },
+    });
     activeWsClient.subscribe((msg) => {
       if (msg.type === "state.snapshot") {
         const { payload } = msg;
@@ -109,13 +170,15 @@ export const useStudioStore = create<StudioState>((set, get) => ({
           verification: payload.verification || {},
           fpga: payload.fpga || {},
           isConnected: true,
+          transportState: "connected",
+          transportDetail: `session ${sessionId.slice(0, 8)} live`,
         });
       } else if (msg.type === "state.delta") {
         // Handle delta updates if your backend sends them, for now merge into state
         // This is a simplified merge, depending on backend's delta structure
         // A full snapshot is sent frequently enough for now.
       } else if (msg.type === "session.created") {
-        set({ isConnected: true });
+        set({ isConnected: true, transportState: "connected", transportDetail: `session ${sessionId.slice(0, 8)} created` });
       }
     });
     
@@ -127,7 +190,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       activeWsClient.disconnect();
       activeWsClient = null;
     }
-    set({ isConnected: false, sessionId: null, status: "waiting" });
+    set({ isConnected: false, sessionId: null, status: "waiting", transportState: "closed", transportDetail: "session closed" });
   },
   
   compileRtl: async () => {

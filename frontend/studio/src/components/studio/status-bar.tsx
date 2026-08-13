@@ -10,25 +10,28 @@ function hex(value: number): string {
 }
 
 function backendTone(status: string): "good" | "warn" | "fault" | "idle" {
-  if (status === "running" || status === "compiled" || status === "paused") return "good";
-  if (status === "connecting" || status === "compiling") return "warn";
-  if (status === "waiting" || status === "disconnected") return "warn";
+  if (status === "connected" || status === "running" || status === "compiled" || status === "paused") return "good";
+  if (status === "connecting" || status === "reconnecting" || status === "compiling") return "warn";
+  if (status === "waiting" || status === "closed" || status === "backend-unavailable" || status === "websocket-failed") return "warn";
   if (status === "fault") return "fault";
   return "idle";
 }
 
 function backendLabel(status: string, sessionId: string | null): string {
-  if ((status === "running" || status === "compiled") && sessionId) return `backend · ${sessionId.substring(0, 8)}`;
-  if (status === "connecting") return "backend · connecting...";
-  if (status === "waiting") return "backend · waiting for backend";
-  if (status === "disconnected") return "backend · session closed";
+  if ((status === "connected" || status === "running" || status === "compiled") && sessionId) return `backend · ${sessionId.substring(0, 8)}`;
+  if (status === "connecting") return "backend · connecting to Railway";
+  if (status === "reconnecting") return "backend · reconnecting to Railway";
+  if (status === "backend-unavailable") return "backend · unavailable";
+  if (status === "websocket-failed") return "backend · websocket failed";
+  if (status === "waiting") return "backend · waiting for session";
+  if (status === "closed") return "backend · session closed";
   if (status === "fault") return "backend · fault";
   return `backend · ${status}`;
 }
 
 /** Bottom instrumentation strip: always-visible core telemetry + backend status. */
 export function StatusBar() {
-  const { status, sessionId, isConnected, playback, metrics, architecture, top } = useStudio();
+  const { status, sessionId, isConnected, playback, metrics, architecture, top, transportState, transportDetail } = useStudio();
 
   const cycle = playback?.cycle || 0;
   const pc = architecture?.pc || 0;
@@ -66,11 +69,11 @@ export function StatusBar() {
         </div>
       ))}
       <div className="mono-num ml-auto flex shrink-0 items-center gap-1.5 text-[10px]">
-        <StatusDot tone={backendTone(status)} />
-        <span className="text-muted-foreground/70">{backendLabel(status, sessionId)}</span>
+        <StatusDot tone={backendTone(transportState)} />
+        <span className="text-muted-foreground/70">{backendLabel(transportState, sessionId)}</span>
       </div>
       <div className="mono-num shrink-0 text-[10px] uppercase text-muted-foreground/50">
-        {top ? `${top} · live hardware` : "rv32i · backend snapshot"}
+        {transportDetail ? transportDetail : top ? `${top} · live hardware` : "rv32i · backend snapshot"}
       </div>
     </footer>
   );

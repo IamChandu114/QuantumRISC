@@ -79,8 +79,14 @@ export function currentCycle(playback: any, metrics: any): number {
   return asNumber(metrics?.["cycles"], 0);
 }
 
-export function currentStatusLabel(status: string, connected: boolean): string {
-  if (!connected) return "waiting for backend";
+export function currentStatusLabel(status: string, connected: boolean, transportState?: string): string {
+  if (transportState === "connected" && connected) return "connected";
+  if (transportState === "reconnecting") return "reconnecting to Railway backend";
+  if (transportState === "backend-unavailable") return "backend unavailable";
+  if (transportState === "websocket-failed") return "websocket failed";
+  if (transportState === "connecting") return "connecting to Railway backend";
+  if (transportState === "closed") return "session closed";
+  if (!connected) return "connecting to Railway backend";
   if (status === "created" || status === "connecting") return "waiting for compilation";
   if (status === "compiled") return "compiled, awaiting run";
   if (status === "running") return "running live";

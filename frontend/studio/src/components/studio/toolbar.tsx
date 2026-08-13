@@ -48,7 +48,7 @@ function ToolButton({
 }
 
 export function Toolbar() {
-  const { isConnected, status, playback, metrics, compileRtl, runSimulation, stepSimulation, resetSimulation } = useStudio();
+  const { isConnected, status, playback, metrics, compileRtl, runSimulation, stepSimulation, resetSimulation, transportState } = useStudio();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -77,8 +77,19 @@ export function Toolbar() {
 
   const cycle = playback?.cycle || 0;
   const ipc = metrics?.ipc || 0;
-  const health = isConnected ? (status === "running" ? "good" : "idle") : status === "connecting" ? "warn" : "idle";
-  const transportLabel = isConnected ? "core0" : status === "connecting" ? "connecting" : "waiting for backend";
+  const health = transportState === "connected" ? (status === "running" ? "good" : "idle") : transportState === "connecting" || transportState === "reconnecting" ? "warn" : transportState === "backend-unavailable" || transportState === "websocket-failed" ? "fault" : "idle";
+  const transportLabel =
+    transportState === "connected"
+      ? "core0"
+      : transportState === "connecting"
+        ? "connecting to Railway"
+        : transportState === "reconnecting"
+          ? "reconnecting"
+          : transportState === "backend-unavailable"
+            ? "backend unavailable"
+            : transportState === "websocket-failed"
+              ? "websocket failed"
+              : "session closed";
 
   return (
     <header className="z-20 flex h-14 shrink-0 items-center gap-2 border-b border-border bg-surface/70 px-3 backdrop-blur-xl">

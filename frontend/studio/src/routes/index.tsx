@@ -17,7 +17,7 @@ export const Route = createFileRoute("/")({
 });
 
 function DashboardPage() {
-  const { status, sessionId, top, testbench, isConnected, playback, metrics, architecture, waveforms, compile, run } =
+  const { status, sessionId, top, testbench, isConnected, playback, metrics, architecture, waveforms, compile, run, transportState } =
     useStudio();
 
   const samples = useMemo(() => timelineSamples(waveforms), [waveforms]);
@@ -30,7 +30,7 @@ function DashboardPage() {
   const forwards = asNumber(metrics?.forwards, 0);
   const ipc = asNumber(metrics?.ipc, 0);
   const cpi = asNumber(metrics?.cpi, 0);
-  const backendState = currentStatusLabel(status, isConnected);
+  const backendState = currentStatusLabel(status, isConnected, transportState);
   const stallRate = cycle > 0 ? stalls / cycle : 0;
 
   const quickFacts = [
@@ -114,7 +114,15 @@ function DashboardPage() {
           <div className="rounded-lg border border-border/70 bg-surface-raised/40 px-3 py-2">
             <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Backend state</div>
             <div className="mono-num mt-1 text-[11px] text-muted-foreground">
-              {isConnected ? "Live snapshots arriving over WebSocket." : "Waiting for backend connection."}
+              {transportState === "connected"
+                ? "Live snapshots arriving over WebSocket."
+                : transportState === "reconnecting"
+                  ? "Reconnecting to the Railway backend."
+                  : transportState === "backend-unavailable"
+                    ? "Backend unavailable. Retrying automatically."
+                    : transportState === "websocket-failed"
+                      ? "WebSocket failed. Retrying automatically."
+                      : "Connecting to the Railway backend."}
             </div>
           </div>
         </div>
