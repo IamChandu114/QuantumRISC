@@ -21,7 +21,7 @@ from app.sim.vcd_parser import VCDParser
 from app.trackers.memory_tracker import MemoryTracker
 from app.trackers.pipeline_tracker import PipelineTracker
 from app.trackers.register_tracker import RegisterTracker
-from app.sessions.db import init_db, save_session, load_sessions
+from app.sessions.db import init_db, load_session, save_session, load_sessions
 
 
 @dataclass
@@ -80,7 +80,14 @@ class SessionManager:
         return record
 
     def get(self, session_id: str) -> SessionRecord:
-        return self.sessions[session_id]
+        session = self.sessions.get(session_id)
+        if session is not None:
+            return session
+        loaded = load_session(self.settings.sqlite_db_path, session_id)
+        if loaded is None:
+            raise KeyError(session_id)
+        self.sessions[session_id] = loaded
+        return loaded
 
     def add_subscriber(self, session_id: str, queue: asyncio.Queue) -> None:
         self.subscribers.setdefault(session_id, []).append(queue)
@@ -143,7 +150,7 @@ class SessionManager:
         return {signal: current_sample[signal] for signal in signals if signal in current_sample}
 
     async def _broadcast_state(self, session_id: str) -> None:
-        await self.broadcast(session_id, {"type": "state.snapshot", "payload": self.snapshot(session_id).model_dump()})
+        await self.broadcast(session_id, {"type": "state.snapshot", "payload": jsonable_encoder(self.snapshot(session_id))})
 
     async def _playback_loop(self, session_id: str) -> None:
         try:

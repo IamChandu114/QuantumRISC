@@ -3,9 +3,11 @@ from __future__ import annotations
 import asyncio
 import logging
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.encoders import jsonable_encoder
 
 from app.models.schemas import DiscoveryResponse, SessionCreateRequest, SessionCreateResponse, CompileResponse, RunResponse
 from app.sessions.manager import SessionManager
+from app.utils.serialization import to_jsonable
 
 
 logger = logging.getLogger("quantumrisc")
@@ -178,8 +180,8 @@ def build_router(manager: SessionManager) -> APIRouter:
             
             # Send initial session snapshot to synchronize frontend immediately
             try:
-                snap = manager.snapshot(session_id).model_dump()
-                await websocket.send_json({"type": "state.snapshot", "payload": snap})
+                snap = to_jsonable(manager.snapshot(session_id))
+                await websocket.send_json({"type": "state.snapshot", "payload": jsonable_encoder(snap)})
             except Exception as snap_err:
                 logger.error(f"Failed to stream initial state snapshot over WebSocket: {snap_err}")
             

@@ -78,11 +78,55 @@ def save_session(db_path: Path, session: "SessionRecord") -> None:
         conn.close()
 
 
+def _row_to_session(row: sqlite3.Row) -> "SessionRecord":
+    from app.sessions.manager import SessionRecord
+
+    created_at = datetime.fromisoformat(row["created_at"])
+    updated_at = datetime.fromisoformat(row["updated_at"])
+
+    return SessionRecord(
+        id=row["id"],
+        top=row["top"],
+        testbench=row["testbench"],
+        created_at=created_at,
+        updated_at=updated_at,
+        status=row["status"],
+        compile=json.loads(row["compile"] or "{}"),
+        run=json.loads(row["run"] or "{}"),
+        parsed=json.loads(row["parsed"] or "{}"),
+        timeline=json.loads(row["timeline"] or "[]"),
+        cursor=row["cursor"],
+        paused=bool(row["paused"]),
+        playback_mode=row["playback_mode"],
+        vcd_path=Path(row["vcd_path"]) if row["vcd_path"] else None,
+        build_path=Path(row["build_path"]) if row["build_path"] else None,
+        workdir=Path(row["workdir"]) if row["workdir"] else None,
+        output_path=Path(row["output_path"]) if row["output_path"] else None,
+    )
+
+
+def load_session(db_path: Path, session_id: str) -> "SessionRecord" | None:
+    if not db_path.exists():
+        return None
+    conn = sqlite3.connect(str(db_path))
+    try:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM sessions WHERE id = ?", (session_id,))
+        row = cursor.fetchone()
+        if row is None:
+            return None
+        return _row_to_session(row)
+    except Exception:
+        return None
+    finally:
+        conn.close()
+
+
 def load_sessions(db_path: Path) -> dict[str, "SessionRecord"]:
     if not db_path.exists():
         return {}
     conn = sqlite3.connect(str(db_path))
-    from app.sessions.manager import SessionRecord
     sessions: dict[str, SessionRecord] = {}
     try:
         conn.row_factory = sqlite3.Row
@@ -90,28 +134,7 @@ def load_sessions(db_path: Path) -> dict[str, "SessionRecord"]:
         cursor.execute("SELECT * FROM sessions")
         rows = cursor.fetchall()
         for row in rows:
-            created_at = datetime.fromisoformat(row["created_at"])
-            updated_at = datetime.fromisoformat(row["updated_at"])
-            
-            record = SessionRecord(
-                id=row["id"],
-                top=row["top"],
-                testbench=row["testbench"],
-                created_at=created_at,
-                updated_at=updated_at,
-                status=row["status"],
-                compile=json.loads(row["compile"] or "{}"),
-                run=json.loads(row["run"] or "{}"),
-                parsed=json.loads(row["parsed"] or "{}"),
-                timeline=json.loads(row["timeline"] or "[]"),
-                cursor=row["cursor"],
-                paused=bool(row["paused"]),
-                playback_mode=row["playback_mode"],
-                vcd_path=Path(row["vcd_path"]) if row["vcd_path"] else None,
-                build_path=Path(row["build_path"]) if row["build_path"] else None,
-                workdir=Path(row["workdir"]) if row["workdir"] else None,
-                output_path=Path(row["output_path"]) if row["output_path"] else None,
-            )
+            record = _row_to_session(row)
             sessions[record.id] = record
     except Exception:
         # Ignore errors loading corrupt sessions and return empty or partial dict
