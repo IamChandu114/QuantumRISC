@@ -42,6 +42,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from fastapi import Request
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    logger.info(f"REQUEST: {request.method} {request.url.path}")
+    response = await call_next(request)
+    logger.info(f"RESPONSE: {response.status_code}")
+    return response
+
+
 app.include_router(build_router(manager))
 
 website_dist = settings.frontend_root / "website" / "dist"
