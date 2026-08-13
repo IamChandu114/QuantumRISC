@@ -106,6 +106,42 @@ class SessionManager:
         cursor = max(0, min(session.cursor, len(session.timeline) - 1))
         return session.timeline[: cursor + 1]
 
+    def _discovery_payload(self) -> dict[str, Any]:
+        discovery = self.discovery.discover()
+        return {
+            "tops": discovery.tops,
+            "smoke_tops": discovery.smoke_tops,
+            "testbenches": discovery.testbenches,
+            "rtl_files": [
+                {
+                    "path": str(f.path.relative_to(self.settings.repo_root)),
+                    "kind": "rtl",
+                    "module_names": f.module_names,
+                }
+                for f in discovery.rtl_files
+            ],
+            "verification_files": [
+                {
+                    "path": str(f.path.relative_to(self.settings.repo_root)),
+                    "kind": "verification",
+                    "module_names": f.module_names,
+                }
+                for f in discovery.verification_files
+            ],
+            "default_top": discovery.default_top,
+            "default_testbench": discovery.default_testbench,
+        }
+
+    @staticmethod
+    def _topic_signals(signals: list[str], keywords: tuple[str, ...]) -> list[str]:
+        lowered = tuple(keyword.lower() for keyword in keywords)
+        matched = [signal for signal in signals if any(keyword in signal.lower() for keyword in lowered)]
+        return sorted(dict.fromkeys(matched))
+
+    @staticmethod
+    def _topic_values(current_sample: dict[str, Any], signals: list[str]) -> dict[str, Any]:
+        return {signal: current_sample[signal] for signal in signals if signal in current_sample}
+
     async def _broadcast_state(self, session_id: str) -> None:
         await self.broadcast(session_id, {"type": "state.snapshot", "payload": self.snapshot(session_id).model_dump()})
 
@@ -273,6 +309,12 @@ class SessionManager:
         forwarding = self.forwarding_analyzer.analyze(hazards)
         metrics = self.metrics_engine.analyze(timeline, hazards)
         current_sample = timeline[-1]["changed"] if timeline else {}
+        discovery = self._discovery_payload()
+        signal_names = list(session.parsed.get("signals", []))
+        cache_signals = self._topic_signals(signal_names, ("cache", "l1i", "l1d", "hit", "miss", "tag", "line", "victim", "way", "set"))
+        branch_signals = self._topic_signals(signal_names, ("branch", "jump", "flush", "predict", "ghr", "pht", "btb", "pc", "zero", "stall"))
+        verification_signals = self._topic_signals(signal_names, ("assert", "cover", "coverage", "scoreboard", "fail", "pass", "check"))
+        fpga_signals = self._topic_signals(signal_names, ("lut", "ff", "bram", "dsp", "timing", "slack", "fmax", "critical"))
         return SessionSnapshot(
             session_id=session.id,
             status=session.status,
@@ -280,6 +322,7 @@ class SessionManager:
             testbench=session.testbench,
             created_at=session.created_at,
             updated_at=session.updated_at,
+            discovery=discovery,
             playback={
                 "cursor": session.cursor,
                 "total": len(session.timeline),
@@ -297,4 +340,41 @@ class SessionManager:
             metrics=metrics,
             waveforms={"timeline": session.timeline, "signals": session.parsed.get("signals", []), "cursor": session.cursor, "current": current_sample},
             vcd={"path": str(session.vcd_path) if session.vcd_path else None, "name": session.vcd_path.name if session.vcd_path else None},
+            cache={
+                "signals": cache_signals,
+                "current": self._topic_values(current_sample, cache_signals),
+                "available": bool(cache_signals),
+                "reason": "" if cache_signals else "The current backend snapshot does not emit cache-specific signals.",
+            },
+            branch={
+                "signals": branch_signals,
+                "current": self._topic_values(current_sample, branch_signals),
+                "available": bool(branch_signals),
+                "reason": "" if branch_signals else "The current backend snapshot does not emit dedicated branch predictor signals.",
+                "hazards": hazards,
+                "forwarding": forwarding,
+            },
+            verification={
+                "files": discovery["verification_files"],
+                "compile": session.compile,
+                "run": session.run,
+                "vcd": {"path": str(session.vcd_path) if session.vcd_path else None, "name": session.vcd_path.name if session.vcd_path else None},
+                "signals": verification_signals,
+                "current": self._topic_values(current_sample, verification_signals),
+                "logs": {
+                    "compile_stdout": session.compile.get("stdout", ""),
+                    "compile_stderr": session.compile.get("stderr", ""),
+                    "run_stdout": session.run.get("stdout", ""),
+                    "run_stderr": session.run.get("stderr", ""),
+                },
+            },
+            fpga={
+                "rtl_files": discovery["rtl_files"],
+                "verification_files": discovery["verification_files"],
+                "compile": session.compile,
+                "run": session.run,
+                "signals": fpga_signals,
+                "available": False,
+                "reason": "The current backend flow does not emit synthesis resource or timing reports.",
+            },
         )

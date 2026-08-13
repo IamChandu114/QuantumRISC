@@ -8,6 +8,7 @@ interface StudioState {
   top: string;
   testbench: string;
   isConnected: boolean;
+  discovery: any;
   
   // Data models (matching backend SessionSnapshot)
   playback: any;
@@ -22,6 +23,10 @@ interface StudioState {
   metrics: any;
   waveforms: any;
   vcd: any;
+  cache: any;
+  branch: any;
+  verification: any;
+  fpga: any;
 
   // Actions
   initializeSession: (top?: string, testbench?: string) => Promise<void>;
@@ -43,6 +48,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   top: "",
   testbench: "",
   isConnected: false,
+  discovery: {},
   
   playback: {},
   compile: {},
@@ -56,6 +62,10 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   metrics: {},
   waveforms: {},
   vcd: {},
+  cache: {},
+  branch: {},
+  verification: {},
+  fpga: {},
 
   initializeSession: async (top?: string, testbench?: string) => {
     try {
@@ -81,6 +91,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
           status: payload.status,
           top: payload.top,
           testbench: payload.testbench,
+          discovery: payload.discovery || {},
           playback: payload.playback || {},
           compile: payload.compile || {},
           run: payload.run || {},
@@ -93,6 +104,10 @@ export const useStudioStore = create<StudioState>((set, get) => ({
           metrics: payload.metrics || {},
           waveforms: payload.waveforms || {},
           vcd: payload.vcd || {},
+          cache: payload.cache || {},
+          branch: payload.branch || {},
+          verification: payload.verification || {},
+          fpga: payload.fpga || {},
           isConnected: true,
         });
       } else if (msg.type === "state.delta") {

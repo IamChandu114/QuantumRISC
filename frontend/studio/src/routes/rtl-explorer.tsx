@@ -1,10 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useStudio } from "@/hooks/use-studio";
 import { Chip, Metric, Panel } from "@/components/studio/panel";
-import { ApiClient } from "@/lib/api-client";
 
-type DiscoveryFile = { path: string; kind: string; module_names: string[] };
+type DiscoveryFile = {
+  path: string;
+  kind: string;
+  module_names: string[];
+};
+
 type Discovery = {
   tops: string[];
   smoke_tops: string[];
@@ -20,29 +24,15 @@ export const Route = createFileRoute("/rtl-explorer")({
 });
 
 function RtlExplorerPage() {
-  const { top, testbench, sessionId } = useStudio();
-  const [discovery, setDiscovery] = useState<Discovery | null>(null);
+  const { top, testbench, sessionId, discovery } = useStudio();
   const [query, setQuery] = useState("");
+  const payload = discovery as Discovery | undefined;
+  const rtlFiles = payload?.rtl_files ?? [];
 
-  useEffect(() => {
-    let mounted = true;
-    void ApiClient.getDiscovery()
-      .then((data) => {
-        if (mounted) setDiscovery(data as Discovery);
-      })
-      .catch(() => {
-        if (mounted) setDiscovery(null);
-      });
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  const rtlFiles = discovery?.rtl_files ?? [];
   const filteredFiles = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return rtlFiles;
-    return rtlFiles.filter((file) => `${file.path} ${file.module_names.join(" ")}`.toLowerCase().includes(q));
+    return rtlFiles.filter((file: DiscoveryFile) => `${file.path} ${file.module_names.join(" ")}`.toLowerCase().includes(q));
   }, [rtlFiles, query]);
 
   const modules = useMemo(() => {
@@ -62,11 +52,11 @@ function RtlExplorerPage() {
       <Panel title="RTL Explorer" subtitle="module hierarchy, dependencies, and source navigation from backend discovery" className="xl:col-span-12" scroll={false}>
         <div className="grid grid-cols-2 gap-2.5 p-3 sm:grid-cols-4 lg:grid-cols-6">
           <Metric label="Session" value={sessionId ? sessionId.slice(0, 8) : "none"} tone={sessionId ? "signal" : "warn"} />
-          <Metric label="Top" value={top || discovery?.default_top || "n/a"} />
-          <Metric label="Testbench" value={testbench || discovery?.default_testbench || "n/a"} />
+          <Metric label="Top" value={top || payload?.default_top || "n/a"} />
+          <Metric label="Testbench" value={testbench || payload?.default_testbench || "n/a"} />
           <Metric label="RTL files" value={rtlFiles.length.toLocaleString()} tone="good" />
           <Metric label="Modules" value={modules.length.toLocaleString()} tone="signal" />
-          <Metric label="Testbenches" value={discovery?.testbenches.length.toLocaleString() ?? "0"} tone="warn" />
+          <Metric label="Testbenches" value={(payload?.testbenches.length ?? 0).toLocaleString()} tone="warn" />
         </div>
       </Panel>
 
@@ -79,11 +69,11 @@ function RtlExplorerPage() {
             className="w-full rounded-lg border border-border bg-background/50 px-3 py-2 text-[12px] text-foreground outline-none placeholder:text-muted-foreground focus:border-signal/40"
           />
           <div className="space-y-1.5">
-            {filteredFiles.slice(0, 18).map((file) => (
+            {filteredFiles.slice(0, 18).map((file: DiscoveryFile) => (
               <div key={file.path} className="rounded-lg border border-border/70 bg-surface-raised/35 p-3">
                 <div className="mono-num text-[11px] text-foreground">{file.path}</div>
                 <div className="mt-1 flex flex-wrap gap-1">
-                  {file.module_names.length > 0 ? file.module_names.map((module) => <Chip key={module}>{module}</Chip>) : <Chip tone="default">no modules</Chip>}
+                  {file.module_names.length > 0 ? file.module_names.map((moduleName: string) => <Chip key={moduleName}>{moduleName}</Chip>) : <Chip tone="default">no modules</Chip>}
                 </div>
               </div>
             ))}
@@ -106,13 +96,17 @@ function RtlExplorerPage() {
             </tr>
           </thead>
           <tbody>
-            {modules.map(([module, files]) => (
-              <tr key={module} className="border-t border-border/50">
-                <td className="mono-num px-3 py-2 text-[11px] text-foreground">{module}</td>
+            {modules.map(([moduleName, files]: [string, DiscoveryFile[]]) => (
+              <tr key={moduleName} className="border-t border-border/50">
+                <td className="mono-num px-3 py-2 text-[11px] text-foreground">{moduleName}</td>
                 <td className="mono-num px-3 py-2 text-[11px] text-muted-foreground">{files.length}</td>
                 <td className="px-3 py-2">
                   <div className="flex flex-wrap gap-1">
-                    {files.slice(0, 3).map((file) => <Chip key={file.path} tone="signal">{file.path}</Chip>)}
+                    {files.slice(0, 3).map((file: DiscoveryFile) => (
+                      <Chip key={file.path} tone="signal">
+                        {file.path}
+                      </Chip>
+                    ))}
                   </div>
                 </td>
               </tr>
@@ -130,7 +124,7 @@ function RtlExplorerPage() {
 
       <Panel title="Cross references" subtitle="module-to-file relationships" className="xl:col-span-12">
         <div className="grid gap-2.5 p-3 sm:grid-cols-2 xl:grid-cols-4">
-          {(discovery?.rtl_files ?? []).slice(0, 12).map((file) => (
+          {rtlFiles.slice(0, 12).map((file: DiscoveryFile) => (
             <article key={file.path} className="rounded-lg border border-border/70 bg-surface-raised/35 p-3">
               <div className="mono-num text-[11px] text-foreground">{file.path}</div>
               <div className="mono-num mt-1 text-[10px] text-muted-foreground">

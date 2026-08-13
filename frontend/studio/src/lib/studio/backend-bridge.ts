@@ -75,7 +75,28 @@ async function jsonFetch(url: string, init?: RequestInit): Promise<unknown> {
   const timer = setTimeout(() => controller.abort(), HEALTH_TIMEOUT_MS);
   try {
     const res = await fetch(url, { ...init, signal: controller.signal });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) {
+      const method = String(init?.method ?? "GET").toUpperCase();
+      const endpoint = new URL(url).pathname;
+      const fallback = `Backend returned HTTP ${res.status} for ${method} ${endpoint}`;
+      try {
+        const body = await res.text();
+        if (!body) throw new Error(fallback);
+        try {
+          const parsed = JSON.parse(body) as { detail?: unknown; message?: unknown; error?: unknown };
+          const detail = parsed.detail ?? parsed.message ?? parsed.error;
+          if (typeof detail === "string" && detail.trim()) {
+            throw new Error(`${fallback}: ${detail}`);
+          }
+        } catch {
+          // Non-JSON response, fall through.
+        }
+        throw new Error(`${fallback}: ${body.slice(0, 240)}`);
+      } catch (error) {
+        if (error instanceof Error) throw error;
+        throw new Error(fallback);
+      }
+    }
     return await res.json();
   } finally {
     clearTimeout(timer);
@@ -152,7 +173,16 @@ export class BackendBridge {
       this.onNotify("Simulation complete", "VCD waveform data is ready.", "info");
       await this.fetchSnapshot();
     } catch (e) {
-      this.onNotify("Backend error", String(e), "error");
+      const message = e instanceof Error ? e.message : String(e);
+      const title =
+        message.includes("compile")
+          ? "Compile request failed"
+          : message.includes("run")
+            ? "Simulation request failed"
+            : message.includes("HTTP 500")
+              ? "Backend returned an internal error"
+              : "Backend request failed";
+      this.onNotify(title, `${message}. Check the session output and backend logs.`, "error");
     }
   }
 

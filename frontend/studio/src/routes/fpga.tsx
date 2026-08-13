@@ -1,46 +1,24 @@
-import { useMemo } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useStudio } from "@/hooks/use-studio";
 import { Bar, Chip, Metric, Panel } from "@/components/studio/panel";
-import { ApiClient } from "@/lib/api-client";
-import { useEffect, useState } from "react";
-
-type DiscoveryFile = { path: string; kind: string; module_names: string[] };
-type Discovery = {
-  rtl_files: DiscoveryFile[];
-  verification_files: DiscoveryFile[];
-};
 
 export const Route = createFileRoute("/fpga")({
   component: FpgaPage,
 });
 
 function FpgaPage() {
-  const { compile, run, metrics, status, isConnected } = useStudio();
-  const [discovery, setDiscovery] = useState<Discovery | null>(null);
-
-  useEffect(() => {
-    let mounted = true;
-    void ApiClient.getDiscovery()
-      .then((data) => {
-        if (mounted) setDiscovery(data as Discovery);
-      })
-      .catch(() => {
-        if (mounted) setDiscovery(null);
-      });
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  const synthesisNotes = useMemo(() => {
-    if (compile?.stderr) return compile.stderr;
-    if (run?.stderr) return run.stderr;
-    return "No synthesis report emitted by the current backend session.";
-  }, [compile, run]);
-
-  const rtlCount = discovery?.rtl_files.length ?? 0;
-  const verificationCount = discovery?.verification_files.length ?? 0;
+  const { compile, run, metrics, status, isConnected, discovery, fpga } = useStudio();
+  const rtlCount = discovery?.rtl_files?.length ?? fpga?.rtl_files?.length ?? 0;
+  const verificationCount = discovery?.verification_files?.length ?? fpga?.verification_files?.length ?? 0;
+  const synthesisNotes = compile?.stderr || run?.stderr || fpga?.reason || "No synthesis report emitted by the current backend session.";
+  const resourceRows = [
+    { label: "LUT", value: fpga?.resource_report?.lut, hint: "backend synthesis report" },
+    { label: "FF", value: fpga?.resource_report?.ff, hint: "backend synthesis report" },
+    { label: "BRAM", value: fpga?.resource_report?.bram, hint: "backend synthesis report" },
+    { label: "DSP", value: fpga?.resource_report?.dsp, hint: "backend synthesis report" },
+    { label: "Timing slack", value: fpga?.timing_report?.slack, hint: "backend synthesis report" },
+    { label: "Fmax", value: fpga?.timing_report?.fmax, hint: "backend synthesis report" },
+  ];
 
   return (
     <div className="grid min-h-0 grid-cols-1 gap-3 xl:grid-cols-12">
@@ -57,22 +35,15 @@ function FpgaPage() {
 
       <Panel title="Resource summary" subtitle="backend-derived design scale and availability" className="xl:col-span-7">
         <div className="space-y-3 p-3">
-          {[
-            ["LUT", "not emitted", "wait for synthesis reporting"],
-            ["FF", "not emitted", "wait for synthesis reporting"],
-            ["BRAM", "not emitted", "wait for synthesis reporting"],
-            ["DSP", "not emitted", "wait for synthesis reporting"],
-            ["Timing slack", "not emitted", "wait for synthesis reporting"],
-            ["Fmax", "not emitted", "wait for synthesis reporting"],
-          ].map(([label, value, hint]) => (
+          {resourceRows.map(({ label, value, hint }) => (
             <div key={label} className="rounded-lg border border-border/70 bg-surface-raised/35 px-3 py-2.5">
               <div className="flex items-center justify-between">
                 <span className="text-[12px] text-foreground/90">{label}</span>
-                <span className="mono-num text-[11px] text-muted-foreground">{value}</span>
+                <span className="mono-num text-[11px] text-muted-foreground">{value ?? "n/a"}</span>
               </div>
               <div className="mono-num mt-1 text-[10px] text-muted-foreground">{hint}</div>
               <div className="mt-2">
-                <Bar value={0} tone="warn" />
+                <Bar value={value != null ? 1 : 0} tone={value != null ? "good" : "warn"} />
               </div>
             </div>
           ))}
@@ -90,13 +61,13 @@ function FpgaPage() {
             <div className="mt-2 flex flex-wrap gap-1.5">
               <Chip tone="signal">{rtlCount} rtl files</Chip>
               <Chip tone="warn">{verificationCount} verification files</Chip>
-              <Chip>{discovery?.rtl_files[0]?.module_names[0] ?? "no module metadata"}</Chip>
+              <Chip>{discovery?.rtl_files?.[0]?.module_names?.[0] ?? fpga?.signals?.[0] ?? "no module metadata"}</Chip>
             </div>
           </div>
           <div className="rounded-lg border border-border/70 bg-surface-raised/35 p-3">
             <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Timing summary</div>
             <div className="mono-num mt-1 text-[11px] text-muted-foreground">
-              The current backend does not yet emit a synthesis timing report, so the workstation keeps this panel explicitly unavailable instead of synthesizing a fictional slack value.
+              {fpga?.reason ?? "The current backend does not yet emit a synthesis timing report."}
             </div>
           </div>
         </div>
@@ -112,13 +83,13 @@ function FpgaPage() {
             </tr>
           </thead>
           <tbody>
-            {(discovery?.rtl_files ?? []).slice(0, 20).map((file) => (
+            {(discovery?.rtl_files ?? []).slice(0, 20).map((file: { path: string; kind: string; module_names: string[] }) => (
               <tr key={file.path} className="border-t border-border/50">
                 <td className="mono-num px-3 py-2 text-[11px] text-foreground">{file.path}</td>
                 <td className="px-3 py-2"><Chip tone="signal">{file.kind}</Chip></td>
                 <td className="px-3 py-2">
                   <div className="flex flex-wrap gap-1">
-                    {file.module_names.length > 0 ? file.module_names.map((module) => <Chip key={module}>{module}</Chip>) : <span className="mono-num text-[11px] text-muted-foreground">No modules</span>}
+                    {file.module_names.length > 0 ? file.module_names.map((moduleName: string) => <Chip key={moduleName}>{moduleName}</Chip>) : <span className="mono-num text-[11px] text-muted-foreground">No modules</span>}
                   </div>
                 </td>
               </tr>

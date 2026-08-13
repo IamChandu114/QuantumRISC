@@ -59,6 +59,7 @@ class SessionSnapshot(BaseModel):
     testbench: str
     created_at: datetime
     updated_at: datetime
+    discovery: dict[str, Any] = Field(default_factory=dict)
     playback: dict[str, Any] = Field(default_factory=dict)
     compile: dict[str, Any] = Field(default_factory=dict)
     run: dict[str, Any] = Field(default_factory=dict)
@@ -71,3 +72,7 @@ class SessionSnapshot(BaseModel):
     metrics: dict[str, Any] = Field(default_factory=dict)
     waveforms: dict[str, Any] = Field(default_factory=dict)
     vcd: dict[str, Any] = Field(default_factory=dict)
+    cache: dict[str, Any] = Field(default_factory=dict)
+    branch: dict[str, Any] = Field(default_factory=dict)
+    verification: dict[str, Any] = Field(default_factory=dict)
+    fpga: dict[str, Any] = Field(default_factory=dict)

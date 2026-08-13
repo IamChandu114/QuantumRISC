@@ -4,7 +4,7 @@ export class ApiClient {
   static async get(endpoint: string) {
     const response = await fetch(`${API_BASE}${endpoint}`);
     if (!response.ok) {
-      throw new Error(`API Error: ${response.statusText}`);
+      throw await this.httpError("GET", endpoint, response);
     }
     return response.json();
   }
@@ -23,9 +23,31 @@ export class ApiClient {
       ...init,
     });
     if (!response.ok) {
-      throw new Error(`API Error: ${response.statusText}`);
+      throw await this.httpError("POST", endpoint, response);
     }
     return response.json();
+  }
+
+  private static async httpError(method: string, endpoint: string, response: Response): Promise<Error> {
+    const fallback = `Backend returned HTTP ${response.status} for ${method} ${endpoint}`;
+    try {
+      const text = await response.text();
+      if (!text) return new Error(fallback);
+
+      try {
+        const parsed = JSON.parse(text) as { detail?: unknown; message?: unknown };
+        const detail = parsed.detail ?? parsed.message;
+        if (typeof detail === "string" && detail.trim()) {
+          return new Error(`${fallback}: ${detail}`);
+        }
+      } catch {
+        // Not JSON, fall through to raw text.
+      }
+
+      return new Error(`${fallback}: ${text.slice(0, 240)}`);
+    } catch {
+      return new Error(fallback);
+    }
   }
 
   static async getDiscovery() {
