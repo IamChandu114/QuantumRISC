@@ -44,7 +44,7 @@ let activeWsClient: WsClient | null = null;
 
 export const useStudioStore = create<StudioState>((set, get) => ({
   sessionId: null,
-  status: "disconnected",
+  status: "waiting",
   top: "",
   testbench: "",
   isConnected: false,
@@ -127,7 +127,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       activeWsClient.disconnect();
       activeWsClient = null;
     }
-    set({ isConnected: false, sessionId: null, status: "disconnected" });
+    set({ isConnected: false, sessionId: null, status: "waiting" });
   },
   
   compileRtl: async () => {

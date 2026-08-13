@@ -77,7 +77,8 @@ export function Toolbar() {
 
   const cycle = playback?.cycle || 0;
   const ipc = metrics?.ipc || 0;
-  const health = isConnected ? (status === "running" ? "good" : "idle") : "fault";
+  const health = isConnected ? (status === "running" ? "good" : "idle") : status === "connecting" ? "warn" : "idle";
+  const transportLabel = isConnected ? "core0" : status === "connecting" ? "connecting" : "waiting for backend";
 
   return (
     <header className="z-20 flex h-14 shrink-0 items-center gap-2 border-b border-border bg-surface/70 px-3 backdrop-blur-xl">
@@ -109,7 +110,7 @@ export function Toolbar() {
 
       <div className="mono-num hidden items-center gap-2 rounded-lg border border-border bg-surface-raised/60 px-2.5 py-1.5 text-[11px] lg:flex">
         <StatusDot tone={health} />
-        <span className="text-muted-foreground">{isConnected ? "core0" : "disconnected"}</span>
+        <span className="text-muted-foreground">{transportLabel}</span>
         <span className="text-foreground">{cycle.toLocaleString()} cy</span>
         <span className="text-muted-foreground/70">IPC {ipc.toFixed(3)}</span>
       </div>

@@ -12,13 +12,15 @@ function hex(value: number): string {
 function backendTone(status: string): "good" | "warn" | "fault" | "idle" {
   if (status === "running" || status === "compiled" || status === "paused") return "good";
   if (status === "connecting" || status === "compiling") return "warn";
-  if (status === "disconnected" || status === "fault") return "fault";
+  if (status === "waiting" || status === "disconnected") return "warn";
+  if (status === "fault") return "fault";
   return "idle";
 }
 
 function backendLabel(status: string, sessionId: string | null): string {
   if ((status === "running" || status === "compiled") && sessionId) return `backend · ${sessionId.substring(0, 8)}`;
   if (status === "connecting") return "backend · connecting...";
+  if (status === "waiting") return "backend · waiting for backend";
   if (status === "disconnected") return "backend · disconnected";
   if (status === "fault") return "backend · fault";
   return `backend · ${status}`;
