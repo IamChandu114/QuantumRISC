@@ -91,21 +91,23 @@ async def startup_validation():
     # 2. Validate simulation toolchains (Icarus Verilog and VVP)
     iverilog_resolved = shutil.which(settings.iverilog_path) or Path(settings.iverilog_path).exists()
     vvp_resolved = shutil.which(settings.vvp_path) or Path(settings.vvp_path).exists()
-    
-    if iverilog_resolved:
-        logger.info(f"Simulation toolchain validation: iverilog binary found at '{settings.iverilog_path}'")
-    else:
-        logger.warning(
-            f"Simulation toolchain verification: iverilog NOT FOUND or not executable at '{settings.iverilog_path}'. "
-            "Please ensure Icarus Verilog is installed and configured in system PATH."
-        )
-        
-    if vvp_resolved:
-        logger.info(f"Simulation runtime validation: vvp binary found at '{settings.vvp_path}'")
-    else:
-        logger.warning(
-            f"Simulation runtime verification: vvp NOT FOUND or not executable at '{settings.vvp_path}'. "
-            "Please ensure vvp runtime is installed and configured in system PATH."
+
+    toolchain_status = {
+        "iverilog": "available" if iverilog_resolved else "missing",
+        "vvp": "available" if vvp_resolved else "missing",
+    }
+
+    logger.info(
+        "Simulation toolchain status: "
+        f"iverilog={toolchain_status['iverilog']} ({settings.iverilog_path}), "
+        f"vvp={toolchain_status['vvp']} ({settings.vvp_path})"
+    )
+
+    if not iverilog_resolved or not vvp_resolved:
+        logger.info(
+            "Simulation toolchain unavailable in this container. "
+            "Compile and run endpoints stay disabled until Icarus Verilog and vvp are present. "
+            "This is an environment limitation, not a backend failure."
         )
 
 
