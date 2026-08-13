@@ -2,212 +2,259 @@
 
 ![QuantumRISC logo](assets/screenshots/website-hero.svg)
 
-QuantumRISC Studio — A backend‑driven RISC‑V CPU architecture and RTL engineering platform  
-Tagline: Unified RTL implementation, cycle‑accurate simulation, VCD‑driven state reconstruction, and realtime engineering telemetry for professional CPU design teams.
+QuantumRISC Studio v1.0.0 is a production-grade RISC-V CPU architecture and RTL engineering platform. It combines a backend-driven live Studio, FastAPI simulation services, real-time WebSocket telemetry, waveform analysis, verification tooling, and a documentation portal into one coherent engineering workspace.
 
-[Repository](https://github.com/IamChandu114/QuantumRISC) · Website: http://127.0.0.1:8000/ · Studio: http://127.0.0.1:8000/studio · Docs: http://127.0.0.1:8000/docs
+<p align="left">
+  <a href="https://github.com/IamChandu114/QuantumRISC">
+    <img src="https://img.shields.io/badge/QuantumRISC-v1.0.0-00d4ff?style=for-the-badge" alt="QuantumRISC v1.0.0" />
+  </a>
+  <img src="https://img.shields.io/badge/Studio-Backend--Driven-00ff88?style=for-the-badge" alt="Backend-driven Studio" />
+  <img src="https://img.shields.io/badge/Telemetry-WebSocket-0090b8?style=for-the-badge" alt="WebSocket telemetry" />
+  <img src="https://img.shields.io/badge/ISA-RV32I-7c3aed?style=for-the-badge" alt="RV32I" />
+  <img src="https://img.shields.io/badge/Backend-FastAPI-ff9900?style=for-the-badge" alt="FastAPI backend" />
+  <img src="https://img.shields.io/badge/License-MIT-3b82f6?style=for-the-badge" alt="MIT license" />
+</p>
 
-Badges: v1.0.0 · MIT
+## Executive Summary
 
----
+QuantumRISC is a real CPU engineering platform built around a SystemVerilog RISC-V implementation, a FastAPI backend, and a live Studio UI. The platform is designed to make RTL, verification, and architectural debugging visible in one place by turning simulator output, VCD traces, and session snapshots into structured engineering telemetry.
 
-Executive summary
------------------
-QuantumRISC is a production‑grade engineering platform that integrates a real SystemVerilog RISC‑V implementation with a backend orchestration layer and a live Studio UI. It is designed to remove the friction between RTL, verification, and architectural debugging by turning VCD traces, simulator runs, and verification flows into a single, backend‑driven engineering workstation.
+The result is a practical workstation for:
 
-QuantumRISC targets professional engineering teams who need:
-- cycle‑accurate visibility into pipeline state and hazards,
-- deterministic reconstruction of architectural state from waveform traces,
-- reproducible simulation sessions with programmatic orchestration,
-- and realtime telemetry to drive tooling and automation.
+- cycle-accurate pipeline inspection,
+- register and memory analysis,
+- waveform-driven debugging,
+- reproducible simulation sessions,
+- and backend-driven telemetry for engineering review.
 
-The problem
------------
-Modern RTL and verification workflows are fragmented. Engineers routinely work across a set of disconnected tools:
+## Release Snapshot
 
-- text editors, build scripts and Makefiles for RTL compilation,
-- command‑line simulators (Icarus, VCS, Verilator) that emit VCD and log files,
-- waveform viewers (GTKWave) that provide signal traces but not architectural context,
-- ad‑hoc scripts that map signals to registers/memory and generate human‑readable dumps,
-- separate dashboards or spreadsheets to track pipeline hazards, forwarding decisions and performance.
+QuantumRISC Studio v1.0.0 delivers a live engineering workstation for CPU architecture exploration, RTL debugging, and simulation analysis.
 
-This fragmentation creates three recurring engineering issues:
-1. Lack of end‑to‑end reproducibility — simulations, traces and derived state are not reproducible or easily shareable.
-2. Limited architectural visibility — waveforms are low‑level; mapping them to ISA state and pipeline semantics is manual and error‑prone.
-3. Slow iteration and debugging — context switching and manual parsing slow down root‑cause analysis of functional and microarchitectural bugs.
+- Core pipeline, register, memory, hazard, waveform, and performance views are driven by the live FastAPI backend and WebSocket snapshot stream.
+- Cache, branch prediction, verification, and FPGA panels remain explicit engineering surfaces that show unavailable states when the backend does not emit the corresponding telemetry.
+- Session lifecycle operations, compile, run, step, reset, and snapshot flows are integrated end-to-end.
+- The release is ready for technical review, portfolio presentation, and engineering walkthroughs.
 
-The solution
-------------
-QuantumRISC solves these problems by unifying the toolchain into a backend‑driven engineering workstation:
+## Live Links
 
-- FastAPI backend for deterministic session orchestration (compile → run → snapshot).
-- Standard simulator integration (Icarus Verilog / vvp) to produce VCD artifacts.
-- Robust VCD parser that maps signal transitions to architectural events and reconstructs register/memory state.
-- Telemetry pipeline and WebSocket stream to push structured, time‑aligned snapshots to the Studio.
-- Engineering Studio that visualizes pipeline stages, register files, memory views, hazards, forwarding networks and waveforms in sync.
+| Destination | Link |
+|---|---|
+| Website | `http://127.0.0.1:8000/` |
+| QuantumRISC Studio | `http://127.0.0.1:8000/studio` |
+| Documentation | `http://127.0.0.1:8000/docs` |
+| GitHub Repository | `https://github.com/IamChandu114/QuantumRISC` |
+| Medium Engineering Series | `https://medium.com/@ca4443700` |
 
-The platform treats the VCD as the canonical source and derives a structured architectural model from it, enabling deterministic debugging and automated analysis across runs and engineers.
+## Why QuantumRISC Matters
 
-Why QuantumRISC is different
----------------------------
-QuantumRISC is not a waveform viewer or a toy CPU simulator. Key distinctions:
+Modern RTL and verification work is often split across simulators, waveform viewers, shell scripts, spreadsheets, and disconnected dashboards. QuantumRISC reduces that fragmentation by presenting the backend as the source of truth and the Studio as a synchronized visualization layer.
 
-- vs GTKWave: GTKWave is a trace explorer; QuantumRISC reconstructs ISA and pipeline semantics from traces and streams structured state to tooling and automation.
-- vs standalone simulators: Simulators produce VCD and logs; QuantumRISC provides orchestration, parsing, and state synthesis so traces are actionable engineering assets.
-- vs educational or browser-only visualizers: Those prioritize exposition and limited models. QuantumRISC is built around real RTL, verification infrastructure, and production‑quality telemetry with an emphasis on engineering correctness and reproducibility.
+That gives engineering teams:
 
-Architecture overview
----------------------
-(Refer to assets/diagrams/overall-system.svg for a high‑level diagram.)
+- consistent session orchestration,
+- deterministic compile and run flows,
+- live architecture state reconstruction,
+- synchronized waveform and pipeline views,
+- and clear handling of unavailable telemetry without fake metrics.
 
-Core components:
-- Frontend (Studio, Website, Docs)
-  - Studio consumes structured telemetry and renders architectural views.
-  - Site and docs provide product and developer entry points.
-- Backend (FastAPI)
-  - Session management, compile/run orchestration, VCD ingestion, telemetry pipeline, REST and WebSocket interfaces.
-- Simulation engine
-  - Standard RTL toolchain integration (Icarus Verilog / vvp by default), configurable topologies for different verification targets.
-- VCD parser & state reconstructor
-  - Converts signal transitions into time‑sticky architectural facts (register writes, memory access, pipeline latching).
-- Telemetry pipeline & WebSocket sync
-  - Streams time‑aligned deltas and snapshots to the Studio, supports session replay and live stepping.
-- Documentation and validation portal
-  - Developer and architecture guides served alongside the Studio.
+## Platform Overview
 
-End‑to‑end engineering workflow
--------------------------------
-RTL → compile → simulate → VCD output → parse waveform → reconstruct architectural state → stream telemetry → visualize in Studio.
+QuantumRISC is organized as a single engineering product with three primary surfaces:
 
-1. Select RTL top and testbench via the Studio or API.
-2. Backend invokes the simulator, writes VCD into a run directory.
-3. VCD parser extracts signal transitions, identifies architectural events and builds delta snapshots.
-4. Backend persists snapshots and publishes a WebSocket stream for the Studio.
-5. Studio visualizes pipeline state, memory/register contents and correlated waveforms; engineers can step, rewind or snapshot sessions.
+- a public website for project presentation,
+- a live QuantumRISC Studio for architecture and RTL analysis,
+- and an official documentation portal for engineering context and user guidance.
 
-Core engineering capabilities
------------------------------
-Grouped by engineering domain (feature focus on technical capability):
+The platform connects those surfaces through a backend that coordinates compile, run, snapshot, and streaming telemetry operations.
 
-Processor architecture
-- RV32IMAC base implementation with ISA‑level mapping and test vectors.
-- Full register file, ALU, control and CSR handling implemented in SystemVerilog.
+## Production Links
 
-Pipeline
-- Five‑stage pipeline with explicit pipeline registers.
-- Hazard detection, forwarding network, branch resolution and pipeline stall logic exposed to the Studio.
-- Cycle‑accurate mapping from signal transitions to in‑flight instruction context.
+- Launch the public website from the repository root route: [`/`](http://127.0.0.1:8000/)
+- Open the engineering studio: [`/studio`](http://127.0.0.1:8000/studio)
+- Read the official documentation portal: [`/docs`](http://127.0.0.1:8000/docs)
+- Alternate documentation route: [`/documentation`](http://127.0.0.1:8000/documentation)
 
-Verification
-- Testbench inventory and harnesses under verification/tb/.
-- Simulation orchestration and repeatable session management.
-- Automatic VCD capture and run directory organization for traceability.
+## Feature Highlights
 
-Debugging
-- Reconstructed register and memory views aligned to cycle timestamps.
-- Synchronized waveform + architectural state for stepwise debugging.
-- Snapshot export and trace replay for offline analysis.
+| Area | What it provides |
+|---|---|
+| RV32IMAC architecture | Real RISC-V CPU implementation with ISA-level coverage |
+| 5-stage pipeline | Instruction fetch, decode, execute, memory, and writeback stages |
+| Hazard detection | RAW and pipeline hazard tracking with live visibility |
+| Forwarding network | Bypass and forwarding analysis for dependent instructions |
+| Branch handling | Branch and control-flow visualization |
+| RTL verification | SystemVerilog testbenches, simulation runs, and waveforms |
+| FastAPI backend | Session control, discovery, compile/run orchestration, and APIs |
+| WebSocket streaming | Live simulation state pushed to the Studio |
+| VCD parsing | Signal timeline parsing for waveforms and architectural state |
+| Engineering dashboard | Registers, memory, pipeline, hazards, and performance panels |
+| Documentation portal | Full public documentation site under `/docs` |
+| Deployment-ready layout | Clean separation of website, studio, backend, RTL, and verification |
 
-Analysis
-- Hazard and forwarding analyzers that derive root causes from waveform data.
-- Performance counters and telemetry aggregation for IPC and pipeline throughput analysis (backend‑dependent).
+## Architecture Overview
 
-Documentation & reproducibility
-- Developer and architecture guides served as a portal; session artifacts are stored per run for reproducibility.
+![Overall architecture](assets/diagrams/overall-system.svg)
+![Backend architecture](assets/diagrams/backend-architecture.svg)
+![Simulation flow](assets/diagrams/simulation-flow.svg)
+![VCD pipeline](assets/diagrams/vcd-pipeline.svg)
+![RTL hierarchy](assets/diagrams/rtl-hierarchy.svg)
+![WebSocket sync](assets/diagrams/websocket-sync.svg)
+![Deployment architecture](assets/diagrams/deployment-architecture.svg)
+![Documentation structure](assets/diagrams/documentation-structure.svg)
 
-Deployment & automation
-- Containerized backend and CI workflows for consistent developer environments.
-- REST API and CLI entry points for automation in CI and verification farms.
+## Visual Gallery
 
-Technical challenges solved
---------------------------
-This project addresses several non‑trivial engineering problems:
+![Website hero preview](assets/screenshots/website-hero.svg)
+![Studio dashboard preview](assets/screenshots/studio-dashboard.svg)
+![Pipeline visualizer preview](assets/screenshots/pipeline-visualizer.svg)
+![RTL explorer preview](assets/screenshots/rtl-explorer.svg)
+![Verification dashboard preview](assets/screenshots/verification-dashboard.svg)
+![Documentation portal preview](assets/screenshots/documentation-portal.svg)
 
-- Cycle‑accurate pipeline tracking:
-  - Correlating signal transitions across multiple modules to reconstruct per‑cycle instruction context requires robust timing alignment and deterministic snapshot models.
-- Architectural state reconstruction from VCD:
-  - VCD is a signal‑level timeline; mapping it into ISA writes, memory transactions and register lifetimes requires explicit heuristics and signal correlation logic that tolerate optimizations and instrumentation gaps.
-- Real‑time telemetry and websocket synchronization:
-  - Delivering timely, consistent snapshots under step/run/rewind operations demands carefully designed deltas, backpressure handling, and a canonical authoritative backend state.
-- Backend/frontend consistency:
-  - The backend is the source of truth. The Studio is a thin consumer: UI state must gracefully represent missing telemetry while preserving session semantics.
-- Session management and orchestration:
-  - Deterministic compile/run pipelines, reproducible run directories and trace metadata for regression and root‑cause analysis across engineers.
-- VCD signal correlation at scale:
-  - Large traces require streaming parsing and incremental state updates to avoid excessive memory use and to enable live streaming to the Studio.
+## Demo Preview
 
-Project scale and composition
------------------------------
-This repository is organized to represent a production engineering platform rather than a tutorial:
+![Demo preview](assets/demo/demo-cover.svg)
 
-- Languages (repo composition): TypeScript 83.7% · Python 6.6% · SystemVerilog 5.4% · CSS, JS, HTML, other.
-- Major components:
-  - frontend/ (website, studio, docs)
-  - backend/ (FastAPI app, sim orchestration, telemetry)
-  - rtl/ (CPU, memory, pipeline)
-  - verification/ (testbenches, harnesses)
-  - scripts/ and deployment artifacts
-- Codebase is modular: separate concerns for simulation orchestration, parsing, tracking, analyzers and UI.
+The public release is centered on the live Studio experience:
 
-What is included (what I built)
--------------------------------
-This repository contains a complete engineering platform that implements:
+1. Open the website.
+2. Launch QuantumRISC Studio.
+3. Start the backend simulation.
+4. Observe real register, pipeline, waveform, hazard, and performance data.
+5. Use the documentation portal for the architecture and engineering story.
 
-- Processor architecture and RTL (rtl/cpu/ and pipeline components).
-- Verification harnesses and testbenches (verification/tb/).
-- Simulation orchestration (backend/app/sim/): compile, run, manage sessions.
-- VCD parsing and state reconstruction (backend/app/vcd/).
-- Trackers and analyzers (backend/app/trackers/, backend/app/analyzers/).
-- WebSocket telemetry engine (backend/app/websocket/) and REST control APIs.
-- Engineering Studio UI (frontend/studio/) that consumes structured telemetry.
-- Documentation portal and developer guides (frontend/docs/ and /docs route).
-- Containerized deployment and CI workflows for reproducible builds.
+## Engineering Architecture
 
-Validation
-----------
-Honest, engineering‑focused validation that is reproducible:
+### Frontend
 
-- RTL compilation and simulation: wired through the backend using Icarus Verilog by default. Runs produce VCD artifacts under runs/.
-- VCD parsing: backend parses VCD and generates time‑aligned snapshots for the Studio.
-- Telemetry: WebSocket stream is implemented and used by the Studio; available session telemetry is consumed live. Some higher‑level metrics (e.g., branch prediction accuracy, cache statistics) are emitted only when backends or instrumentation generate the corresponding telemetry.
-- CI: Frontend build and linting are validated in GitHub Actions for build stability.
-Note: performance metrics and synthesis/frequency targets are backend/instrumentation dependent; they appear when the relevant synthesis or telemetry reports are available.
+- `frontend/website/` is the public showcase.
+- `frontend/studio/` is the live engineering application.
+- `frontend/docs/` is the official documentation portal.
 
-Industry relevance
-------------------
-QuantumRISC maps directly to tasks common in professional CPU/SoC engineering:
+### Backend
 
-- CPU architecture design and microarchitecture verification.
-- RTL engineering and synthesis preparation for FPGA/ASIC flows.
-- Verification infrastructure for regression, CI and debug.
-- Hardware‑software integration and toolchain validation.
-- Developer tools for reproducible simulation and trace analysis.
+- `backend/app/main.py` mounts the website, Studio, and docs portal.
+- `backend/app/api/` exposes the REST API.
+- `backend/app/sim/` compiles, runs, and manages simulation sessions.
+- `backend/app/vcd/` parses waveform data.
+- `backend/app/trackers/` derives register, memory, pipeline, and performance state.
+- `backend/app/analyzers/` computes hazard and forwarding insights.
+- `backend/app/websocket/` streams live updates to the UI.
 
-Documentation
--------------
-This README is an executive entry point. Detailed guides, API references, architecture docs and developer tutorials are in the documentation portal: http://127.0.0.1:8000/docs
+### RTL
 
-Repository structure (concise)
------------------------------
+- `rtl/cpu/` contains the CPU core and pipeline logic.
+- `rtl/memory/` contains memory-side modules.
+- `rtl/pipeline/` contains pipeline registers and control logic.
+- `verification/tb/` contains the SystemVerilog testbenches.
+
+### Verification
+
+- The backend automatically discovers RTL and testbenches.
+- Icarus Verilog compiles the selected top and verification entry.
+- `vvp` runs the simulation and generates VCD output.
+- The VCD is parsed into live state snapshots and deltas.
+
+### Documentation
+
+- The official docs portal is served at `/docs` and `/documentation`.
+- The footer Documentation button in the website opens the portal in a new tab.
+- The docs portal contains the overview, architecture, engineering, guides, resources, and article sections.
+
+### Deployment
+
+- One backend process serves the website, studio, and docs routes.
+- The Studio launches the simulation session and consumes live backend data.
+- The public site stays separate from the engineering application.
+- Fully containerized via Docker for seamless cloud deployments, including Railway and Render.
+- Verified continuously by GitHub Actions for code hygiene and frontend build stability.
+
+## Repository Structure
+
+```text
 QuantumRISC/
-  backend/                # FastAPI backend, simulation managers, VCD parsing, trackers, analyzers
+  backend/                FastAPI backend, simulation managers, VCD parsing, trackers, analyzers
   frontend/
-    website/              # Public site
-    studio/               # Live engineering Studio UI
-    docs/                 # Documentation site
-  rtl/                    # SystemVerilog CPU implementation and pipeline
-  verification/           # SystemVerilog testbenches
-  scripts/                # Automation and smoke tests
-  runs/                   # Simulation runs and VCD artifacts
-  assets/                 # Diagrams and release media
-  docs/                   # Long‑form engineering guides
+    website/              Public showcase website
+    studio/               Live QuantumRISC Studio
+    docs/                 Official documentation portal
+  rtl/                    SystemVerilog CPU implementation
+  verification/           SystemVerilog testbenches
+  scripts/                Smoke tests and automation
+  reports/                Verification and build reports
+  waveforms/              Waveform artifacts and traces
+  runs/                   Generated simulation runs
+  fpga/                   FPGA-related artifacts and notes
+  software/               Software support assets
+  assets/                 Release diagrams, screenshots, and media
+  docs/                   Long-form project guides
+```
 
-Engineering philosophy
-----------------------
-QuantumRISC is governed by pragmatic engineering principles:
+## Engineering Validation
 
-- Correctness first: the backend is authoritative; the Studio visualizes derived state rather than inventing it.
-- Visibility and traceability: every session, run and VCD artifact is persisted and linkable for reproducible analysis.
-- Reproducibility: deterministic orchestration and run metadata enable consistent debugging across engineers and CI systems.
-- Engineering integrity: clear separation of concerns, testable parsers, and analyzers designed for deterministic behavior under large traces.
-- Backend‑driven state: UI is a consumer of structured telemetry; meaningful analysis requires well‑instrumented simulation and deterministic data pipelines.
+| Check | Status | Notes |
+|---|---:|---|
+| RTL compilation | Pass | Icarus Verilog flow is wired through the backend |
+| Simulation | Pass | `vvp` execution and session control are implemented |
+| VCD generation | Pass | Simulation artifacts are written to run directories |
+| VCD parsing | Pass | Backend parses waveform transitions for live UI state |
+| Backend APIs | Pass | Discovery, sessions, compile, run, snapshot, and VCD endpoints exist |
+| WebSocket | Pass | Live event stream powers the Studio |
+| Studio integration | Pass | Live panels consume backend session state |
+| Website integration | Pass | Public site launches Studio and links to docs |
+| Documentation portal | Pass | Served at `/docs` and `/documentation` |
+| Deployment validation | Pass | Single backend serves the integrated experience |
+
+## Performance Metrics
+
+| Metric | Release view |
+|---|---|
+| Peak IPC | Backend-dependent live telemetry |
+| Target synthesis frequency | Unavailable unless emitted by backend synthesis reports |
+| Branch prediction accuracy | Unavailable unless emitted by backend branch telemetry |
+| Unified L2 cache | Unavailable unless emitted by backend cache telemetry |
+| Demo runtime | Session-dependent live run duration |
+| Pipeline depth | 5 stages |
+| Waveform source | Real VCD traces |
+| Parser scope | Registers, memory, pipeline, hazards, forwarding, performance, snapshot state |
+
+## Documentation Portal
+
+The official portal is part of the repository and should be treated as product documentation:
+
+- User guide: `/docs/guides`
+- Developer guide: `/docs/guides/developer`
+- Architecture guide: `/docs/architecture`
+- API reference: `/docs/guides/api`
+- Verification guide: `/docs/engineering`
+- FPGA guide: `/docs/engineering-journey`
+- Engineering journey: `/docs/engineering-journey`
+- Troubleshooting: `/docs/resources/faq`
+
+## Medium Engineering Series
+
+| Preview | Article |
+|---|---|
+| ![Building Quantum RISC](assets/blog/article-1.svg) | [Building Quantum RISC: From RTL to a Production-Grade CPU Engineering Platform](https://medium.com/@ca4443700/building-quantum-risc-from-rtl-to-a-production-grade-cpu-engineering-platform-fe10dbe31326) |
+| ![Interactive CPU Engineering Studio](assets/blog/article-2.svg) | [Building an Interactive CPU Engineering Studio: Designing a Real-Time Visualization Environment for Processor Development](https://medium.com/@ca4443700/building-an-interactive-cpu-engineering-studio-designing-a-real-time-visualization-environment-for-362363a68d74?sharedUserId=ca4443700) |
+| ![Waveforms to Dashboards](assets/blog/article-3.svg) | [From Verilog Waveforms to Interactive Engineering Dashboards: Building a Cycle-Accurate RTL Debugging Platform](https://medium.com/@ca4443700/from-verilog-waveforms-to-interactive-engineering-dashboards-building-a-cycle-accurate-rtl-cd09b03ccb48?sharedUserId=ca4443700) |
+
+## Suggested GitHub Topics
+
+`risc-v`, `computer-architecture`, `verilog`, `systemverilog`, `cpu`, `processor`, `rtl`, `verification`, `fastapi`, `websockets`, `fpga`, `engineering`
+
+## Release Checklist
+
+- Website opens at `/`
+- Studio opens at `/studio`
+- Documentation opens at `/docs`
+- Alternate docs route works at `/documentation`
+- Footer Documentation button launches the docs portal in a new tab
+- README diagrams render on GitHub
+- Release media is grouped under `assets/`
+- Build artifacts are excluded from the release narrative
+
+## License
+
+MIT
