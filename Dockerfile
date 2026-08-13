@@ -11,11 +11,11 @@ RUN apt-get update && \
 WORKDIR /app/backend
 
 # Install Python requirements
-COPY backend/requirements.txt ./requirements.txt
+COPY requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy project
-COPY . /app
+COPY . /app/backend
 
 # Environment variables
 ENV HOST=0.0.0.0
@@ -23,9 +23,10 @@ ENV CORS_ORIGINS=*
 ENV SQLITE_DB_PATH=runs/sessions.db
 ENV QUANTUMRISC_IVERILOG=iverilog
 ENV QUANTUMRISC_VVP=vvp
+ENV PORT=8080
 
-# Railway will provide PORT automatically
+# Railway will provide PORT automatically, defaulting to 8080
 EXPOSE 8080
 
 # Start server
-CMD ["sh", "-c", "python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]   
+CMD ["sh", "-c", "python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080}"]
