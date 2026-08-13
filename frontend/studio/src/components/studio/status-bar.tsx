@@ -21,7 +21,7 @@ function backendLabel(status: string, sessionId: string | null): string {
   if ((status === "running" || status === "compiled") && sessionId) return `backend · ${sessionId.substring(0, 8)}`;
   if (status === "connecting") return "backend · connecting...";
   if (status === "waiting") return "backend · waiting for backend";
-  if (status === "disconnected") return "backend · disconnected";
+  if (status === "disconnected") return "backend · session closed";
   if (status === "fault") return "backend · fault";
   return `backend · ${status}`;
 }

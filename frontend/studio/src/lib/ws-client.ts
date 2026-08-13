@@ -42,7 +42,7 @@ export class WsClient {
     };
 
     this.ws.onclose = () => {
-      console.log("[WS] Disconnected");
+      console.log("[WS] Connection closed");
       this.ws = null;
       this.isConnecting = false;
       this.attemptReconnect();
