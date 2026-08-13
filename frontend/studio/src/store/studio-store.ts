@@ -11,6 +11,7 @@ interface StudioState {
   testbench: string;
   isConnected: boolean;
   discovery: any;
+  notifications: Array<{ id: number; title: string; detail: string; level: "info" | "warn" | "error" }>;
   
   // Data models (matching backend SessionSnapshot)
   playback: any;
@@ -40,12 +41,18 @@ interface StudioState {
   runSimulation: () => Promise<void>;
   stepSimulation: () => Promise<void>;
   resetSimulation: () => Promise<void>;
+  notify: (title: string, detail: string, level?: "info" | "warn" | "error") => void;
+  clearNotifications: () => void;
 }
 
 let activeWsClient: WsClient | null = null;
 let bootstrapPromise: Promise<void> | null = null;
 let bootstrapRetryTimer: ReturnType<typeof setTimeout> | null = null;
 let bootstrapRetryDelay = 1_000;
+let telemetryBootstrapPromise: Promise<void> | null = null;
+let telemetryBootstrapSessionId: string | null = null;
+let notificationId = 1;
+let lastNotificationKey: string | null = null;
 
 function scheduleBootstrapRetry() {
   if (bootstrapRetryTimer) clearTimeout(bootstrapRetryTimer);
@@ -54,6 +61,35 @@ function scheduleBootstrapRetry() {
     bootstrapRetryDelay = Math.min(bootstrapRetryDelay * 2, 15_000);
     void useStudioStore.getState().initializeSession();
   }, bootstrapRetryDelay);
+}
+
+async function bootstrapTelemetry(sessionId: string) {
+  if (telemetryBootstrapSessionId === sessionId || telemetryBootstrapPromise) return telemetryBootstrapPromise;
+  telemetryBootstrapPromise = (async () => {
+    try {
+      useStudioStore.getState().notify("Bootstrapping simulation", "Compiling RTL and starting live telemetry.", "info");
+      useStudioStore.setState({
+        transportDetail: "compiling RTL for live telemetry",
+      });
+      await ApiClient.compile(sessionId);
+      useStudioStore.setState({
+        transportDetail: "starting simulation and awaiting backend snapshots",
+      });
+      await ApiClient.run(sessionId);
+      telemetryBootstrapSessionId = sessionId;
+      useStudioStore.getState().notify("Simulation started", "Live backend telemetry is now streaming.", "info");
+    } catch (e) {
+      console.error("Failed to bootstrap simulation telemetry", e);
+      const message = e instanceof Error ? e.message : String(e);
+      useStudioStore.getState().notify("Simulation bootstrap failed", message || "automatic simulation bootstrap failed", "error");
+      useStudioStore.setState({
+        transportDetail: message || "automatic simulation bootstrap failed",
+      });
+    } finally {
+      telemetryBootstrapPromise = null;
+    }
+  })();
+  return telemetryBootstrapPromise;
 }
 
 export const useStudioStore = create<StudioState>((set, get) => ({
@@ -65,6 +101,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   testbench: "",
   isConnected: false,
   discovery: {},
+  notifications: [],
   
   playback: {},
   compile: {},
@@ -92,6 +129,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
         const resp = await ApiClient.createSession(top, testbench);
         bootstrapRetryDelay = 1_000;
         get().connectSession(resp.id);
+        void bootstrapTelemetry(resp.id);
       } catch (e) {
         console.error("Failed to initialize session", e);
         set({
@@ -113,6 +151,8 @@ export const useStudioStore = create<StudioState>((set, get) => ({
     if (activeWsClient) {
       activeWsClient.disconnect();
     }
+    lastNotificationKey = null;
+    notificationId = 1;
     
     set({ sessionId, status: "connecting", transportState: "connecting", transportDetail: `session ${sessionId.slice(0, 8)} initializing`, isConnected: false });
     
@@ -190,6 +230,10 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       activeWsClient.disconnect();
       activeWsClient = null;
     }
+    lastNotificationKey = null;
+    notificationId = 1;
+    telemetryBootstrapSessionId = null;
+    telemetryBootstrapPromise = null;
     set({ isConnected: false, sessionId: null, status: "waiting", transportState: "closed", transportDetail: "session closed" });
   },
   
@@ -211,5 +255,19 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   resetSimulation: async () => {
     const id = get().sessionId;
     if (id) await ApiClient.reset(id);
+  },
+
+  notify: (title: string, detail: string, level: "info" | "warn" | "error" = "info") => {
+    const key = `${level}:${title}:${detail}`;
+    if (lastNotificationKey === key) return;
+    set((state) => ({
+      notifications: [{ id: notificationId++, title, detail, level }, ...state.notifications].slice(0, 12),
+    }));
+    lastNotificationKey = key;
+  },
+
+  clearNotifications: () => {
+    set({ notifications: [] });
+    lastNotificationKey = null;
   }
 }));
