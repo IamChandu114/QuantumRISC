@@ -1,5 +1,18 @@
 const API_BASE = "http://localhost:8000/api"; // Default dev base url
 
+function describeHttpStatus(method: string, endpoint: string, status: number): string {
+  if (status === 500) {
+    return `QuantumRISC backend error while handling ${method} ${endpoint}`;
+  }
+  if (status === 404) {
+    return `QuantumRISC could not find ${method} ${endpoint}`;
+  }
+  if (status === 503) {
+    return `QuantumRISC backend is temporarily unavailable for ${method} ${endpoint}`;
+  }
+  return `Backend returned HTTP ${status} for ${method} ${endpoint}`;
+}
+
 export class ApiClient {
   static async get(endpoint: string) {
     const response = await fetch(`${API_BASE}${endpoint}`);
@@ -29,7 +42,7 @@ export class ApiClient {
   }
 
   private static async httpError(method: string, endpoint: string, response: Response): Promise<Error> {
-    const fallback = `Backend returned HTTP ${response.status} for ${method} ${endpoint}`;
+    const fallback = describeHttpStatus(method, endpoint, response.status);
     try {
       const text = await response.text();
       if (!text) return new Error(fallback);

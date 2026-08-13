@@ -70,6 +70,13 @@ interface BackendSnapshot {
 const MAX_RECONNECT_DELAY_MS = 16_000;
 const HEALTH_TIMEOUT_MS = 3_000;
 
+function describeHttpStatus(method: string, endpoint: string, status: number): string {
+  if (status === 500) return `QuantumRISC backend error while handling ${method} ${endpoint}`;
+  if (status === 404) return `QuantumRISC could not find ${method} ${endpoint}`;
+  if (status === 503) return `QuantumRISC backend is temporarily unavailable for ${method} ${endpoint}`;
+  return `Backend returned HTTP ${status} for ${method} ${endpoint}`;
+}
+
 async function jsonFetch(url: string, init?: RequestInit): Promise<unknown> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), HEALTH_TIMEOUT_MS);
@@ -78,7 +85,7 @@ async function jsonFetch(url: string, init?: RequestInit): Promise<unknown> {
     if (!res.ok) {
       const method = String(init?.method ?? "GET").toUpperCase();
       const endpoint = new URL(url).pathname;
-      const fallback = `Backend returned HTTP ${res.status} for ${method} ${endpoint}`;
+      const fallback = describeHttpStatus(method, endpoint, res.status);
       try {
         const body = await res.text();
         if (!body) throw new Error(fallback);
@@ -109,6 +116,7 @@ export class BackendBridge {
   private reconnectDelay = 1_000;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private active = false;
+  private lastNotificationKey: string | null = null;
 
   /** Called by the store whenever status changes. */
   onStatusChange: (status: BackendStatus) => void = () => {};
@@ -157,32 +165,32 @@ export class BackendBridge {
       })) as { ok?: boolean; stderr?: string };
 
       if (!compileRes.ok) {
-        this.onNotify("Compile failed", compileRes.stderr ?? "Unknown error", "error");
+        this.notifyOnce("Compile failed", compileRes.stderr ?? "Unknown error", "error");
         return;
       }
-      this.onNotify("Compiled", `RTL compiled successfully.`, "info");
+      this.notifyOnce("Compiled", `RTL compiled successfully.`, "info");
 
       const runRes = (await jsonFetch(`${this.apiBase()}/api/sessions/${this.session.id}/run`, {
         method: "POST",
       })) as { ok?: boolean; stderr?: string };
 
       if (!runRes.ok) {
-        this.onNotify("Simulation failed", runRes.stderr ?? "Unknown error", "error");
+        this.notifyOnce("Simulation failed", runRes.stderr ?? "Unknown error", "error");
         return;
       }
-      this.onNotify("Simulation complete", "VCD waveform data is ready.", "info");
+      this.notifyOnce("Simulation complete", "VCD waveform data is ready.", "info");
       await this.fetchSnapshot();
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       const title =
-        message.includes("compile")
+        message.includes("QuantumRISC backend error")
+          ? "QuantumRISC backend error"
+          : message.includes("compile")
           ? "Compile request failed"
           : message.includes("run")
             ? "Simulation request failed"
-            : message.includes("HTTP 500")
-              ? "Backend returned an internal error"
               : "Backend request failed";
-      this.onNotify(title, `${message}. Check the session output and backend logs.`, "error");
+      this.notifyOnce(title, `${message}. Check the session output and backend logs.`, "error");
     }
   }
 
@@ -248,7 +256,7 @@ export class BackendBridge {
       this.session = session;
       this.reconnectDelay = 1_000;
       this.onStatusChange("connected");
-      this.onNotify("Backend connected", `Session ${session.id.slice(0, 8)} · ${top}`, "info");
+      this.notifyOnce("Backend connected", `Session ${session.id.slice(0, 8)} · ${top}`, "info");
 
       // 4. Open WebSocket
       this.openWs(session.id);
@@ -309,6 +317,13 @@ export class BackendBridge {
       if (this.active) void this.connect();
     }, this.reconnectDelay);
     this.reconnectDelay = Math.min(this.reconnectDelay * 2, MAX_RECONNECT_DELAY_MS);
+  }
+
+  private notifyOnce(title: string, detail: string, level: "info" | "warn" | "error"): void {
+    const key = `${level}:${title}:${detail}`;
+    if (this.lastNotificationKey === key) return;
+    this.lastNotificationKey = key;
+    this.onNotify(title, detail, level);
   }
 
   // -------------------------------------------- apply snapshot to simulator

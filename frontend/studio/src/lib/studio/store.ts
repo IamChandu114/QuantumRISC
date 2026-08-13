@@ -73,6 +73,7 @@ class StudioStore {
   private lastFrame = 0;
   private accumulator = 0;
   private notificationId = 1;
+  private lastNotificationKey: string | null = null;
 
   constructor() {
     // Wire bridge callbacks
@@ -195,6 +196,9 @@ class StudioStore {
   }
 
   notify(title: string, detail: string, level: "info" | "warn" | "error" = "info"): void {
+    const key = `${level}:${title}:${detail}`;
+    if (this.lastNotificationKey === key) return;
+    this.lastNotificationKey = key;
     const next = [{ id: this.notificationId++, title, detail, level }, ...this.state.notifications].slice(0, 12);
     this.commit({ notifications: next });
   }

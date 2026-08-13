@@ -11,6 +11,10 @@ from app.sessions.manager import SessionManager
 logger = logging.getLogger("quantumrisc")
 
 
+def _internal_error_message(action: str, detail: str) -> str:
+    return f"QuantumRISC backend error while {action}. {detail}"
+
+
 async def heartbeat_loop(websocket: WebSocket) -> None:
     """Send periodic pings to keep WebSocket connections alive."""
     try:
@@ -59,7 +63,13 @@ def build_router(manager: SessionManager) -> APIRouter:
             return SessionCreateResponse(id=record.id, top=record.top, testbench=record.testbench, created_at=record.created_at)
         except Exception as e:
             logger.error(f"Failed to create session: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to create session: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=_internal_error_message(
+                    "creating a session",
+                    "Check the selected top module and testbench, then review the backend logs for the underlying compiler or discovery failure.",
+                ),
+            )
 
     @router.get("/api/sessions/{session_id}")
     async def get_session(session_id: str):
@@ -77,7 +87,13 @@ def build_router(manager: SessionManager) -> APIRouter:
             raise HTTPException(status_code=404, detail="Session not found")
         except Exception as e:
             logger.error(f"Compile failed for session {session_id}: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(
+                status_code=500,
+                detail=_internal_error_message(
+                    "compiling RTL",
+                    "The selected design did not compile cleanly. Inspect the compile output in the Studio session details and the backend logs.",
+                ),
+            )
 
     @router.post("/api/sessions/{session_id}/run", response_model=RunResponse)
     async def run_session(session_id: str):
@@ -88,7 +104,13 @@ def build_router(manager: SessionManager) -> APIRouter:
             raise HTTPException(status_code=404, detail="Session not found")
         except Exception as e:
             logger.error(f"Run failed for session {session_id}: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(
+                status_code=500,
+                detail=_internal_error_message(
+                    "running the simulation",
+                    "The simulation engine returned an internal failure. Check the run output, generated VCD path, and backend logs.",
+                ),
+            )
 
     @router.post("/api/sessions/{session_id}/pause")
     async def pause_session(session_id: str):
