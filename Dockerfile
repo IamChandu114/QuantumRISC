@@ -7,25 +7,25 @@ RUN apt-get update && \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Set working directory to backend so `app` is importable as a top-level package
+# Set working directory
 WORKDIR /app/backend
 
 # Install Python requirements
 COPY backend/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the full repo so RTL and verification sources are available at runtime
+# Copy project
 COPY . /app
 
-# Set default env variables (overridden at runtime by Railway / Docker)
+# Environment variables
 ENV HOST=0.0.0.0
-ENV PORT=8000
 ENV CORS_ORIGINS=*
 ENV SQLITE_DB_PATH=runs/sessions.db
 ENV QUANTUMRISC_IVERILOG=iverilog
 ENV QUANTUMRISC_VVP=vvp
 
-EXPOSE 8000
+# Railway will provide PORT automatically
+EXPOSE 8080
 
-# Run uvicorn with the app package from the backend directory
-CMD ["sh", "-c", "python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Start server
+CMD ["sh", "-c", "python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]   
