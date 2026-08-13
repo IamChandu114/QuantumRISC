@@ -56,12 +56,9 @@ def build_router(manager: SessionManager) -> APIRouter:
     @router.post("/api/sessions", response_model=SessionCreateResponse)
     async def create_session(payload: SessionCreateRequest):
         try:
-            d = manager.discovery.discover()
-            testbench = payload.testbench or d.default_testbench
-            top = payload.top or "pipeline_cpu_complete"
-            if testbench and testbench.endswith("_tb"):
-                top = payload.top or top
+            top, testbench = manager.resolve_execution_profile(payload.top, payload.testbench)
             record = manager.create_session(top=top, testbench=testbench)
+            asyncio.create_task(manager.bootstrap(record.id))
             return SessionCreateResponse(id=record.id, top=record.top, testbench=record.testbench, created_at=record.created_at)
         except Exception as e:
             logger.error(f"Failed to create session: {e}")
@@ -162,7 +159,7 @@ def build_router(manager: SessionManager) -> APIRouter:
     @router.websocket("/ws/sessions/{session_id}")
     async def session_ws(websocket: WebSocket, session_id: str):
         try:
-            manager.get(session_id)
+            session = manager.get(session_id)
         except KeyError:
             await websocket.close(code=4004, reason="Session not found")
             return
@@ -170,6 +167,8 @@ def build_router(manager: SessionManager) -> APIRouter:
         await websocket.accept()
         queue: asyncio.Queue = asyncio.Queue()
         manager.add_subscriber(session_id, queue)
+        if session.status not in {"running", "finished"}:
+            asyncio.create_task(manager.bootstrap(session_id))
         
         # Start the background heartbeat keepalive task
         heartbeat_task = asyncio.create_task(heartbeat_loop(websocket))

@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 import asyncio
+import logging
 import uuid
 from typing import Any
 
@@ -22,6 +23,9 @@ from app.trackers.memory_tracker import MemoryTracker
 from app.trackers.pipeline_tracker import PipelineTracker
 from app.trackers.register_tracker import RegisterTracker
 from app.sessions.db import init_db, load_session, save_session, load_sessions
+
+
+logger = logging.getLogger("quantumrisc")
 
 
 @dataclass
@@ -58,6 +62,8 @@ class SessionManager:
         self.hazard_analyzer = HazardAnalyzer()
         self.forwarding_analyzer = ForwardingAnalyzer()
         self.metrics_engine = MetricsEngine()
+        self.compile_locks: dict[str, asyncio.Lock] = {}
+        self.run_locks: dict[str, asyncio.Lock] = {}
         
         # SQLite persistence initialization
         init_db(settings.sqlite_db_path)
@@ -102,6 +108,48 @@ class SessionManager:
         for queue in list(self.subscribers.get(session_id, [])):
             await queue.put(encoded)
 
+    def _compile_lock(self, session_id: str) -> asyncio.Lock:
+        lock = self.compile_locks.get(session_id)
+        if lock is None:
+            lock = asyncio.Lock()
+            self.compile_locks[session_id] = lock
+        return lock
+
+    def _run_lock(self, session_id: str) -> asyncio.Lock:
+        lock = self.run_locks.get(session_id)
+        if lock is None:
+            lock = asyncio.Lock()
+            self.run_locks[session_id] = lock
+        return lock
+
+    async def bootstrap(self, session_id: str) -> None:
+        session = self.get(session_id)
+        if session.status in {"running", "finished"} and session.run.get("ok") and session.vcd_path and session.vcd_path.exists():
+            return
+        try:
+            resolved_top, resolved_testbench = self.resolve_execution_profile(session.top, session.testbench)
+            if resolved_top != session.top or resolved_testbench != session.testbench:
+                session.top = resolved_top
+                session.testbench = resolved_testbench
+                session.updated_at = datetime.now(timezone.utc)
+                save_session(self.settings.sqlite_db_path, session)
+                await self._broadcast_state(session_id)
+            await self.compile(session_id)
+            session = self.get(session_id)
+            if session.compile.get("ok"):
+                await self.run(session_id)
+        except KeyError:
+            return
+        except Exception as exc:
+            logger.error(f"Auto bootstrap failed for session {session_id}: {exc}")
+            session = self.get(session_id)
+            if session.status == "compiling":
+                session.status = "compile_error"
+            elif session.status == "running":
+                session.status = "run_error"
+            session.updated_at = datetime.now(timezone.utc)
+            save_session(self.settings.sqlite_db_path, session)
+
     def _source_files(self) -> list[Path]:
         rtl = sorted((self.settings.repo_root / "rtl").rglob("*.sv"))
         verification = sorted((self.settings.repo_root / "verification").rglob("*.sv"))
@@ -138,6 +186,28 @@ class SessionManager:
             "default_top": discovery.default_top,
             "default_testbench": discovery.default_testbench,
         }
+
+    def resolve_execution_profile(self, top: str | None = None, testbench: str | None = None) -> tuple[str, str]:
+        discovery = self.discovery.discover()
+        available_tops = set(discovery.tops)
+        available_testbenches = set(discovery.testbenches)
+
+        resolved_testbench = testbench if testbench in available_testbenches else (discovery.default_testbench or "pipeline_cpu_complete_tb")
+        if not resolved_testbench and available_testbenches:
+            resolved_testbench = sorted(available_testbenches)[0]
+        if not resolved_testbench:
+            resolved_testbench = "pipeline_cpu_complete_tb"
+
+        resolved_top = top if top in available_tops else (discovery.default_top or "pipeline_cpu_complete")
+        if resolved_testbench.endswith("_tb"):
+            derived_top = resolved_testbench[:-3]
+            if derived_top in available_tops and top not in available_tops:
+                resolved_top = derived_top
+        if not resolved_top and available_tops:
+            resolved_top = sorted(available_tops)[0]
+        if not resolved_top:
+            resolved_top = "pipeline_cpu_complete"
+        return resolved_top, resolved_testbench
 
     @staticmethod
     def _topic_signals(signals: list[str], keywords: tuple[str, ...]) -> list[str]:
@@ -229,82 +299,105 @@ class SessionManager:
         return self.snapshot(session_id).model_dump()
 
     async def compile(self, session_id: str) -> dict[str, Any]:
-        session = self.get(session_id)
-        await self.broadcast(session_id, {"type": "compile.started", "session_id": session_id})
-        sources = self._source_files()
-        result = await self.compile_manager.compile(sources, session.testbench, session.build_path, session.workdir)
-        session.compile = {
-            "ok": result.ok,
-            "returncode": result.returncode,
-            "stdout": result.stdout,
-            "stderr": result.stderr,
-            "executable": str(result.executable) if result.executable else None,
-        }
-        session.updated_at = datetime.now(timezone.utc)
-        session.status = "compiled" if result.ok else "compile_error"
-        save_session(self.settings.sqlite_db_path, session)
-        await self.broadcast(session_id, {"type": "compile.finished" if result.ok else "compile.error", "payload": session.compile})
-        return session.compile
-
-    async def run(self, session_id: str) -> dict[str, Any]:
-        session = self.get(session_id)
-        if not session.build_path or not session.build_path.exists():
-            await self.compile(session_id)
-        if not session.build_path or not session.build_path.exists():
-            save_session(self.settings.sqlite_db_path, session)
-            return session.run
-        await self.broadcast(session_id, {"type": "run.started", "session_id": session_id})
-        result = await self.run_manager.run(session.build_path, session.workdir)
-        session.run = {
-            "ok": result.ok,
-            "returncode": result.returncode,
-            "stdout": result.stdout,
-            "stderr": result.stderr,
-            "vcd_path": str(result.vcd_path) if result.vcd_path else None,
-        }
-        session.vcd_path = result.vcd_path
-        session.status = "running" if result.ok else "run_error"
-        await self.broadcast(session_id, {"type": "run.stdout", "payload": result.stdout})
-        if result.stderr:
-            await self.broadcast(session_id, {"type": "run.stderr", "payload": result.stderr})
-        if result.ok and result.vcd_path:
-            parsed = self.vcd_parser.parse(result.vcd_path)
-            registers = self.register_tracker.snapshot(parsed.timeline)
-            memory = self.memory_tracker.snapshot(parsed.timeline)
-            pipeline = self.pipeline_tracker.snapshot(parsed.timeline)
-            hazards = self.hazard_analyzer.analyze(parsed.timeline)
-            forwarding = self.forwarding_analyzer.analyze(hazards)
-            metrics = self.metrics_engine.analyze(parsed.timeline, hazards)
-            session.timeline = parsed.timeline
-            session.cursor = max(0, len(session.timeline) - 1)
-            session.paused = True
-            session.playback_mode = "paused"
-            session.parsed = {
-                "signals": list(parsed.signals.keys()),
-                "timeline": parsed.timeline,
-                "samples": parsed.samples,
-            }
-            session.status = "finished"
+        async with self._compile_lock(session_id):
+            session = self.get(session_id)
+            resolved_top, resolved_testbench = self.resolve_execution_profile(session.top, session.testbench)
+            if resolved_top != session.top or resolved_testbench != session.testbench:
+                session.top = resolved_top
+                session.testbench = resolved_testbench
+                session.updated_at = datetime.now(timezone.utc)
+                save_session(self.settings.sqlite_db_path, session)
+                await self._broadcast_state(session_id)
+            if session.compile.get("ok") and session.build_path and session.build_path.exists() and session.status in {"compiled", "running", "finished"}:
+                return session.compile
+            await self.broadcast(session_id, {"type": "compile.started", "session_id": session_id})
+            session.status = "compiling"
             session.updated_at = datetime.now(timezone.utc)
             save_session(self.settings.sqlite_db_path, session)
             await self._broadcast_state(session_id)
-            await self.broadcast(session_id, {"type": "run.finished", "payload": session.run})
-            for event_name, value in (
-                ("registers.update", registers),
-                ("memory.update", memory),
-                ("pipeline.update", pipeline),
-                ("hazard.update", hazards),
-                ("forwarding.update", forwarding),
-                ("metrics.update", metrics),
-                ("state.delta", {"session_id": session_id, "updated_at": session.updated_at.isoformat()}),
-            ):
-                await self.broadcast(session_id, {"type": event_name, "payload": value})
-                await asyncio.sleep(0)
-        elif not result.ok:
-            session.status = "run_error"
+            sources = self._source_files()
+            result = await self.compile_manager.compile(sources, session.testbench, session.build_path, session.workdir)
+            session.compile = {
+                "ok": result.ok,
+                "returncode": result.returncode,
+                "stdout": result.stdout,
+                "stderr": result.stderr,
+                "executable": str(result.executable) if result.executable else None,
+            }
+            session.updated_at = datetime.now(timezone.utc)
+            session.status = "compiled" if result.ok else "compile_error"
             save_session(self.settings.sqlite_db_path, session)
-            await self.broadcast(session_id, {"type": "run.error", "payload": session.run})
-        return session.run
+            await self.broadcast(session_id, {"type": "compile.finished" if result.ok else "compile.error", "payload": session.compile})
+            await self._broadcast_state(session_id)
+            return session.compile
+
+    async def run(self, session_id: str) -> dict[str, Any]:
+        async with self._run_lock(session_id):
+            session = self.get(session_id)
+            if session.run.get("ok") and session.vcd_path and session.vcd_path.exists() and session.status in {"running", "finished"}:
+                return session.run
+            if not session.build_path or not session.build_path.exists():
+                await self.compile(session_id)
+            if not session.build_path or not session.build_path.exists():
+                save_session(self.settings.sqlite_db_path, session)
+                return session.run
+            await self.broadcast(session_id, {"type": "run.started", "session_id": session_id})
+            session.status = "running"
+            session.updated_at = datetime.now(timezone.utc)
+            save_session(self.settings.sqlite_db_path, session)
+            await self._broadcast_state(session_id)
+            result = await self.run_manager.run(session.build_path, session.workdir)
+            session.run = {
+                "ok": result.ok,
+                "returncode": result.returncode,
+                "stdout": result.stdout,
+                "stderr": result.stderr,
+                "vcd_path": str(result.vcd_path) if result.vcd_path else None,
+            }
+            session.vcd_path = result.vcd_path
+            session.status = "running" if result.ok else "run_error"
+            await self.broadcast(session_id, {"type": "run.stdout", "payload": result.stdout})
+            if result.stderr:
+                await self.broadcast(session_id, {"type": "run.stderr", "payload": result.stderr})
+            if result.ok and result.vcd_path:
+                parsed = self.vcd_parser.parse(result.vcd_path)
+                registers = self.register_tracker.snapshot(parsed.timeline)
+                memory = self.memory_tracker.snapshot(parsed.timeline)
+                pipeline = self.pipeline_tracker.snapshot(parsed.timeline)
+                hazards = self.hazard_analyzer.analyze(parsed.timeline)
+                forwarding = self.forwarding_analyzer.analyze(hazards)
+                metrics = self.metrics_engine.analyze(parsed.timeline, hazards)
+                session.timeline = parsed.timeline
+                session.cursor = 0
+                session.paused = False
+                session.playback_mode = "playing"
+                session.parsed = {
+                    "signals": list(parsed.signals.keys()),
+                    "timeline": parsed.timeline,
+                    "samples": parsed.samples,
+                }
+                session.status = "running"
+                session.updated_at = datetime.now(timezone.utc)
+                save_session(self.settings.sqlite_db_path, session)
+                await self._broadcast_state(session_id)
+                await self.broadcast(session_id, {"type": "run.finished", "payload": session.run})
+                for event_name, value in (
+                    ("registers.update", registers),
+                    ("memory.update", memory),
+                    ("pipeline.update", pipeline),
+                    ("hazard.update", hazards),
+                    ("forwarding.update", forwarding),
+                    ("metrics.update", metrics),
+                    ("state.delta", {"session_id": session_id, "updated_at": session.updated_at.isoformat()}),
+                ):
+                    await self.broadcast(session_id, {"type": event_name, "payload": value})
+                    await asyncio.sleep(0)
+                await self.resume(session_id)
+            elif not result.ok:
+                session.status = "run_error"
+                save_session(self.settings.sqlite_db_path, session)
+                await self.broadcast(session_id, {"type": "run.error", "payload": session.run})
+            return session.run
 
     def snapshot(self, session_id: str) -> SessionSnapshot:
         session = self.get(session_id)

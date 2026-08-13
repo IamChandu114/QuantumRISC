@@ -66,8 +66,8 @@ class DiscoveryService:
         preferred = [m for m in ("pipeline_cpu_complete", "cpu_top") if m in modules]
         tops = preferred + [m for m in top_candidates if m not in preferred]
         smoke_tops = [m for m in ("cpu_top", "pipeline_cpu_complete") if m in modules]
-        default_top = "pipeline_cpu_complete_tb" if "pipeline_cpu_complete_tb" in testbenches else (testbenches[0] if testbenches else "")
-        default_testbench = default_top
+        default_top = preferred[0] if preferred else (top_candidates[0] if top_candidates else "")
+        default_testbench = next((tb for tb in ("pipeline_cpu_complete_tb", "cpu_top_tb") if tb in testbenches), (testbenches[0] if testbenches else ""))
         return DiscoveryResult(
             tops=tops,
             smoke_tops=smoke_tops,
@@ -77,4 +77,3 @@ class DiscoveryService:
             default_top=default_top,
             default_testbench=default_testbench,
         )
-
