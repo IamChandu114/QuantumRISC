@@ -2,14 +2,21 @@
 
 ## Release 1.0.0
 
-QuantumRISC is now organized as a public-facing engineering platform with:
+QuantumRISC Studio v1.0.0 is a production release for RISC-V architecture exploration, RTL debugging, simulation analysis, and verification workflows.
 
-- a professional showcase website,
-- a live CPU engineering Studio,
-- a production documentation portal,
-- a FastAPI backend,
-- RTL and verification infrastructure,
-- and a release-ready media and documentation structure.
+### Highlights
 
-This release is intended for GitHub publication, portfolio use, and technical review.
+- RV32I processor with a 5-stage pipeline
+- FastAPI backend with websocket-driven live telemetry
+- Backend-driven Studio for pipeline, register, memory, hazard, waveform, and performance analysis
+- Real session lifecycle controls for discovery, compile, run, step, reset, and snapshot
+- RTL Explorer and documentation surfaces backed by the project source tree
+- Production deployment support for Vercel and Railway
 
+### Technical note
+
+The core Studio is driven by live backend state. Cache, branch prediction, verification, and FPGA analysis panels intentionally show unavailable states when the backend does not emit those metrics, rather than fabricating values.
+
+### Repository
+
+https://github.com/IamChandu114/QuantumRISC

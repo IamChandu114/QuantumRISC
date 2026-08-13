@@ -1,6 +1,26 @@
 # QuantumRISC
 
-**A production-grade RISC-V CPU engineering platform featuring RTL implementation, verification infrastructure, real-time simulation, interactive visualization, and a complete engineering documentation portal.**
+**QuantumRISC Studio v1.0.0 is a production-grade RISC-V CPU architecture and RTL engineering platform with a backend-driven live Studio, FastAPI simulation services, real-time websocket telemetry, waveform analysis, verification tooling, and a documentation portal built for serious hardware workflows.**
+
+<p align="left">
+  <a href="https://github.com/IamChandu114/QuantumRISC">
+    <img src="https://img.shields.io/badge/QuantumRISC-v1.0.0-00d4ff?style=for-the-badge" alt="QuantumRISC v1.0.0" />
+  </a>
+  <img src="https://img.shields.io/badge/Studio-Backend--Driven-00ff88?style=for-the-badge" alt="Backend-driven Studio" />
+  <img src="https://img.shields.io/badge/Telemetry-WebSocket-0090b8?style=for-the-badge" alt="WebSocket telemetry" />
+  <img src="https://img.shields.io/badge/ISA-RV32I-7c3aed?style=for-the-badge" alt="RV32I" />
+  <img src="https://img.shields.io/badge/Backend-FastAPI-ff9900?style=for-the-badge" alt="FastAPI backend" />
+  <img src="https://img.shields.io/badge/License-MIT-3b82f6?style=for-the-badge" alt="MIT license" />
+</p>
+
+## Release Snapshot
+
+QuantumRISC Studio v1.0.0 delivers a live engineering workstation for CPU architecture exploration, RTL debugging, and simulation analysis.
+
+- Core pipeline, register, memory, hazard, waveform, and performance views are driven by the live FastAPI backend and websocket snapshot stream.
+- Cache, branch prediction, verification, and FPGA panels remain explicit engineering surfaces that show unavailable states when the backend does not emit the corresponding telemetry.
+- Session lifecycle operations, compile, run, step, reset, and snapshot flows are integrated end-to-end.
+- The release is ready for technical review, portfolio presentation, and engineering walkthroughs.
 
 ![Release Banner](assets/screenshots/website-hero.svg)
 
