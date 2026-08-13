@@ -195,14 +195,14 @@ QuantumRISC/
 
 | Metric | Release view |
 |---|---|
-| Peak IPC | 1.87 |
-| Target synthesis frequency | 200 MHz |
-| Branch prediction accuracy | 94% |
-| Unified L2 cache | 256 KB |
-| Demo runtime | 39:07 |
+| Peak IPC | Backend-dependent live telemetry |
+| Target synthesis frequency | Unavailable unless emitted by backend synthesis reports |
+| Branch prediction accuracy | Unavailable unless emitted by backend branch telemetry |
+| Unified L2 cache | Unavailable unless emitted by backend cache telemetry |
+| Demo runtime | Session-dependent live run duration |
 | Pipeline depth | 5 stages |
 | Waveform source | Real VCD traces |
-| Parser scope | Registers, memory, pipeline, hazards, forwarding, performance |
+| Parser scope | Registers, memory, pipeline, hazards, forwarding, performance, snapshot state |
 
 ## Documentation Portal
 
