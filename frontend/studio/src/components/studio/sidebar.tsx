@@ -1,9 +1,21 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
-  Activity, Binary, Boxes, CircuitBoard, Cpu, Gauge, GitBranch, LayoutDashboard,
-  MemoryStick, PanelLeftClose, PanelLeftOpen, ShieldCheck, Waves, Zap,
+  Activity,
+  Binary,
+  Boxes,
+  CircuitBoard,
+  Cpu,
+  Gauge,
+  GitBranch,
+  LayoutDashboard,
+  MemoryStick,
+  PanelLeftClose,
+  PanelLeftOpen,
+  ShieldCheck,
+  Waves,
+  Zap,
 } from "lucide-react";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useStudio } from "@/hooks/use-studio";
 import { cn } from "@/lib/utils";
 import { StatusDot } from "./panel";
@@ -19,11 +31,13 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { to: "/", label: "Dashboard", hint: "Core telemetry", icon: LayoutDashboard, group: "Overview" },
   { to: "/pipeline", label: "Pipeline Viewer", hint: "IF · ID · EX · MEM · WB", icon: CircuitBoard, group: "Microarchitecture" },
-  { to: "/registers", label: "Register File", hint: "32 × 32-bit GPR", icon: Binary, group: "Microarchitecture" },
+  { to: "/registers", label: "Register File", hint: "32 x 32-bit GPR", icon: Binary, group: "Microarchitecture" },
   { to: "/hazards", label: "Hazard Analyzer", hint: "RAW · WAR · WAW", icon: Zap, group: "Microarchitecture" },
   { to: "/memory", label: "Memory Viewer", hint: "Physical hex dump", icon: MemoryStick, group: "Memory System" },
   { to: "/cache", label: "Cache Explorer", hint: "L1I · L1D", icon: Boxes, group: "Memory System" },
   { to: "/branch", label: "Branch Predictor", hint: "Gshare · BTB", icon: GitBranch, group: "Memory System" },
+  { to: "/rtl-explorer", label: "RTL Explorer", hint: "Modules · refs", icon: GitBranch, group: "Analysis" },
+  { to: "/fpga", label: "FPGA Analysis", hint: "LUT · FF · timing", icon: Cpu, group: "Analysis" },
   { to: "/waveforms", label: "Waveform Viewer", hint: "VCD timing", icon: Waves, group: "Analysis" },
   { to: "/verification", label: "Verification", hint: "Assertions · coverage", icon: ShieldCheck, group: "Analysis" },
   { to: "/performance", label: "Performance", hint: "IPC · CPI · stalls", icon: Gauge, group: "Analysis" },
@@ -33,61 +47,56 @@ const MIN_WIDTH = 220;
 const MAX_WIDTH = 420;
 
 export function Sidebar() {
-  const { state, sim, store } = useStudio();
+  const { top, status, playback, metrics } = useStudio();
+  const [sidebarWidth, setSidebarWidth] = useState(256);
+  const [collapsed, setCollapsed] = useState(false);
+
   const asideRef = useRef<HTMLElement>(null);
   const draggingRef = useRef(false);
 
-  const onPointerDown = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      event.preventDefault();
-      draggingRef.current = true;
-      (event.target as HTMLElement).setPointerCapture(event.pointerId);
-    },
-    [],
-  );
+  const onPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    draggingRef.current = true;
+    (event.target as HTMLElement).setPointerCapture(event.pointerId);
+  }, []);
 
-  const onPointerMove = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      if (!draggingRef.current || !asideRef.current) return;
-      const left = asideRef.current.getBoundingClientRect().left;
-      store.setSidebarWidth(Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, event.clientX - left)));
-    },
-    [store],
-  );
+  const onPointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    if (!draggingRef.current || !asideRef.current) return;
+    const left = asideRef.current.getBoundingClientRect().left;
+    setSidebarWidth(Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, event.clientX - left)));
+  }, []);
 
   const endDrag = useCallback(() => {
     draggingRef.current = false;
   }, []);
 
-  // Keyboard resize for pointer-free operation.
-  const onKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLDivElement>) => {
-      if (event.key === "ArrowLeft") store.setSidebarWidth(state.sidebarWidth - 16);
-      if (event.key === "ArrowRight") store.setSidebarWidth(state.sidebarWidth + 16);
-    },
-    [state.sidebarWidth, store],
-  );
+  const onKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "ArrowLeft") setSidebarWidth((w) => w - 16);
+    if (event.key === "ArrowRight") setSidebarWidth((w) => w + 16);
+  }, []);
 
   useEffect(() => {
-    const onGlobalKey = (e: KeyboardEvent) => {
-      if (e.key === "b" && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        store.toggleSidebar();
+    const onGlobalKey = (event: KeyboardEvent) => {
+      if (event.key === "b" && (event.metaKey || event.ctrlKey)) {
+        event.preventDefault();
+        setCollapsed((value) => !value);
       }
     };
     window.addEventListener("keydown", onGlobalKey);
     return () => window.removeEventListener("keydown", onGlobalKey);
-  }, [store]);
+  }, []);
 
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const collapsed = state.sidebarCollapsed;
-  const groups = [...new Set(NAV_ITEMS.map((i) => i.group))];
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const groups = [...new Set(NAV_ITEMS.map((item) => item.group))];
+  const cycle = playback?.cycle || 0;
+  const ipc = metrics?.ipc || 0;
+  const isRunning = status === "running";
 
   return (
     <aside
       ref={asideRef}
       className="relative z-20 hidden shrink-0 flex-col border-r border-border bg-surface/70 backdrop-blur-xl md:flex"
-      style={{ width: collapsed ? 68 : state.sidebarWidth }}
+      style={{ width: collapsed ? 68 : sidebarWidth }}
       aria-label="Module navigation"
     >
       <div className="flex h-14 shrink-0 items-center gap-2.5 border-b border-border px-4">
@@ -97,7 +106,7 @@ export function Sidebar() {
         {!collapsed && (
           <div className="min-w-0">
             <div className="truncate text-[13px] font-semibold tracking-tight">QuantumRISC Studio</div>
-            <div className="mono-num truncate text-[10px] text-muted-foreground">{state.backendTop ? `Arch · ${state.backendTop}` : "RV32I · 5-stage in-order"}</div>
+            <div className="mono-num truncate text-[10px] text-muted-foreground">{top ? `Arch · ${top}` : "RV32I · 5-stage in-order"}</div>
           </div>
         )}
       </div>
@@ -111,7 +120,7 @@ export function Sidebar() {
               </div>
             )}
             <ul className="space-y-0.5">
-              {NAV_ITEMS.filter((i) => i.group === group).map((item) => {
+              {NAV_ITEMS.filter((item) => item.group === group).map((item) => {
                 const active = pathname === item.to;
                 const Icon = item.icon;
                 return (
@@ -122,9 +131,7 @@ export function Sidebar() {
                       aria-current={active ? "page" : undefined}
                       className={cn(
                         "group flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] transition-colors",
-                        active
-                          ? "bg-signal/10 text-signal ring-1 ring-signal/25"
-                          : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                        active ? "bg-signal/10 text-signal ring-1 ring-signal/25" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
                       )}
                     >
                       <Icon className="size-4 shrink-0" aria-hidden="true" />
@@ -147,26 +154,26 @@ export function Sidebar() {
         {!collapsed && (
           <div className="mb-2 rounded-lg border border-border/70 bg-surface-raised/50 px-2.5 py-2">
             <div className="flex items-center gap-2 text-[11px]">
-              <StatusDot tone={state.running ? "good" : "idle"} />
-              <span className="text-muted-foreground">{state.running ? "Simulating" : "Halted"}</span>
-              <span className="mono-num ml-auto text-foreground">{sim.cycle.toLocaleString()} cy</span>
+              <StatusDot tone={isRunning ? "good" : "idle"} />
+              <span className="text-muted-foreground">{isRunning ? "Simulating" : "Halted"}</span>
+              <span className="mono-num ml-auto text-foreground">{cycle.toLocaleString()} cy</span>
             </div>
             <div className="mono-num mt-1 flex items-center gap-2 text-[10px] text-muted-foreground">
               <Activity className="size-3" aria-hidden="true" />
-              IPC {sim.metrics.ipc.toFixed(3)} · {state.frequencyMhz} MHz
+              IPC {ipc.toFixed(3)} · live backend
             </div>
           </div>
         )}
         <button
           type="button"
-          onClick={() => store.toggleSidebar()}
+          onClick={() => setCollapsed(!collapsed)}
           className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-[12px] text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
           aria-expanded={!collapsed}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {collapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
           {!collapsed && <span>Collapse</span>}
-          {!collapsed && <kbd className="mono-num ml-auto text-[10px] opacity-60">⌘B</kbd>}
+          {!collapsed && <kbd className="mono-num ml-auto text-[10px] opacity-60">Cmd+B</kbd>}
         </button>
       </div>
 

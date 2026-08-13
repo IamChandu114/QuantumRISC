@@ -54,12 +54,6 @@ export default defineConfig({
   // Needed for SPA routing: the FastAPI backend handles /studio,
   // and the frontend handles sub-routes client-side.
   base: "/studio/",
-  // Explicitly define env vars at build time so Vite statically inlines them.
-  define: {
-    "import.meta.env.VITE_API_URL": JSON.stringify(
-      process.env["VITE_API_URL"] ?? "https://quantumrisc-production.up.railway.app"
-    ),
-  },
   server: {
     port: 5173,
     proxy: {

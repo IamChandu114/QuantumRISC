@@ -1,213 +1,220 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useMemo } from "react";
 import { useStudio } from "@/hooks/use-studio";
 import { Chip, Panel } from "@/components/studio/panel";
-import { STAGES, type StageName } from "@/lib/sim/core";
-import { hex } from "@/lib/studio/format";
 import { REG_NAMES } from "@/lib/sim/isa";
+import {
+  asNumber,
+  derivedProgramHistory,
+  groupBits,
+  hex,
+  historyWindow,
+  normalizeSignals,
+  pct,
+  sampleField,
+  timelineSamples,
+} from "@/lib/studio/live";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/pipeline")({
   component: PipelinePage,
 });
 
-const STAGE_DESC: Record<StageName, string> = {
-  IF: "Instruction fetch · L1I · next-PC",
-  ID: "Decode · regfile read · interlock",
-  EX: "ALU · branch resolve · bypass mux",
-  MEM: "L1D access · store buffer",
-  WB: "Architectural commit",
-};
+const STAGES = ["IF", "ID", "EX", "MEM", "WB"] as const;
 
-function statusTone(status: string) {
-  switch (status) {
-    case "active": return "border-signal/45 bg-signal/10";
-    case "stalled": return "border-warn/50 bg-warn/10";
-    case "flushed": return "border-fault/50 bg-fault/10";
-    case "bubble": return "border-dashed border-border bg-muted/25";
-    default: return "border-border bg-muted/15";
-  }
+function decodeInstruction(word: number | undefined): Array<[string, string]> {
+  const value = asNumber(word, 0) >>> 0;
+  const opcode = value & 0x7f;
+  const rd = (value >>> 7) & 0x1f;
+  const funct3 = (value >>> 12) & 0x7;
+  const rs1 = (value >>> 15) & 0x1f;
+  const rs2 = (value >>> 20) & 0x1f;
+  const funct7 = (value >>> 25) & 0x7f;
+  const immI = value >> 20;
+  return [
+    ["opcode", hex(opcode, 2)],
+    ["rd", `x${rd} (${REG_NAMES[rd]})`],
+    ["rs1", `x${rs1} (${REG_NAMES[rs1]})`],
+    ["rs2", `x${rs2} (${REG_NAMES[rs2]})`],
+    ["funct3", hex(funct3, 1)],
+    ["funct7", hex(funct7, 2)],
+    ["imm[11:0]", String(immI)],
+    ["word", hex(value)],
+  ];
+}
+
+function toneForStage(index: number, total: number, status?: string) {
+  if (status === "stalled") return "border-warn/50 bg-warn/10";
+  if (status === "flushed") return "border-fault/50 bg-fault/10";
+  if (index === 0) return "border-signal/45 bg-signal/10";
+  if (index === total - 1) return "border-good/45 bg-good/10";
+  return "border-border bg-surface-raised/35";
 }
 
 function PipelinePage() {
-  const { sim } = useStudio();
-  const trace = sim.history.slice(-14);
+  const { pipeline, forwarding, metrics, playback, architecture, waveforms, hazards, isConnected } = useStudio();
+
+  const samples = useMemo(() => timelineSamples(waveforms), [waveforms]);
+  const recent = useMemo(() => historyWindow(derivedProgramHistory(samples, 48), 12), [samples]);
+  const current = recent.at(-1);
+  const currentWord = asNumber(
+    pipeline?.instruction ??
+      pipeline?.word ??
+      sampleField(waveforms?.current as any, "pipeline_cpu_complete_tb.DUT.if_instruction [31:0]"),
+    0,
+  );
+  const currentPc = asNumber(pipeline?.pc ?? architecture?.pc, 0);
+  const totalCycles = asNumber(metrics?.cycles, 0);
+  const stallRate = totalCycles > 0 ? asNumber(metrics?.stalls ?? metrics?.stallCycles, 0) / totalCycles : 0;
+
+  const stageModel = useMemo(() => {
+    const stream = [...recent].slice(-5);
+    return STAGES.map((stage, index) => {
+      const evt = stream[stream.length - 1 - index];
+      const active = Boolean(evt);
+      const status = index === 0 ? "active" : index === 1 && active ? "active" : index < stream.length ? "active" : "bubble";
+      return {
+        stage,
+        status,
+        pc: evt?.pc ?? null,
+        instr: evt?.instr ?? null,
+        cycle: evt?.cycle ?? null,
+      };
+    });
+  }, [recent]);
+
+  const controlSignals = normalizeSignals(waveforms, architecture).filter((name) => /branch|stall|flush|cache|pc|instruction/i.test(name));
 
   return (
     <div className="grid min-h-0 grid-cols-1 gap-3 xl:grid-cols-12">
       <Panel
-        title="Datapath — 5-stage in-order pipeline"
-        subtitle={`cycle ${sim.cycle} · PC ${hex(sim.pc)}`}
+        title="Datapath workstation"
+        subtitle={`cycle ${asNumber(playback?.cursor ?? metrics?.cycles, 0)} · live backend pipeline state`}
         className="xl:col-span-12"
         actions={
           <div className="flex flex-wrap gap-1.5">
-            <Chip tone="signal">active</Chip>
-            <Chip tone="warn">stalled</Chip>
-            <Chip tone="fault">flushed</Chip>
-            <Chip>bubble</Chip>
+            <Chip tone="signal">live</Chip>
+            <Chip tone="warn">stalls {pct(stallRate, 1)}</Chip>
+            <Chip tone="fault">hazards {asNumber(metrics?.hazards, hazards.length).toLocaleString()}</Chip>
           </div>
         }
         scroll={false}
       >
-        <div className="grid grid-cols-1 gap-2.5 p-3 sm:grid-cols-2 lg:grid-cols-5">
-          {STAGES.map((stage) => {
-            const slot = sim.slots[stage];
-            const fwd = stage === "EX" ? sim.forwarding : [];
-            return (
-              <div
-                key={stage}
-                className={cn(
-                  "relative flex min-h-[168px] flex-col rounded-xl border p-3 transition-colors",
-                  statusTone(slot.status),
-                )}
-              >
+        <div className="grid gap-3 p-3 lg:grid-cols-[1.5fr_0.95fr]">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-5">
+            {stageModel.map((slot, index) => (
+              <div key={slot.stage} className={cn("rounded-xl border p-3 transition-colors", toneForStage(index, stageModel.length, slot.status))}>
                 <div className="flex items-center justify-between">
-                  <span className="mono-num text-[12px] font-bold tracking-widest text-foreground">{stage}</span>
-                  <span className="mono-num text-[9px] uppercase tracking-wider text-muted-foreground">
-                    {slot.status}
-                  </span>
+                  <span className="mono-num text-[12px] font-semibold tracking-[0.18em] text-foreground">{slot.stage}</span>
+                  <span className="mono-num text-[10px] uppercase tracking-wider text-muted-foreground">{slot.status}</span>
                 </div>
-                <p className="mono-num mt-0.5 text-[9.5px] leading-tight text-muted-foreground">{STAGE_DESC[stage]}</p>
-
-                <div key={slot.uid} className="anim-stage-enter mt-3 min-h-[60px] rounded-lg border border-border/70 bg-background/50 p-2">
-                  {slot.instr ? (
-                    <>
-                      <div className="mono-num truncate text-[12px] font-semibold text-foreground">{slot.instr.asm}</div>
-                      <div className="mono-num mt-1 text-[10px] text-muted-foreground">{hex(slot.instr.pc)}</div>
-                      <div className="mono-num text-[10px] text-muted-foreground/80">{hex(slot.instr.word)}</div>
-                    </>
-                  ) : (
-                    <div className="mono-num pt-3 text-center text-[11px] text-muted-foreground/70">
-                      {slot.status === "flushed" ? "squashed" : slot.status === "bubble" ? "bubble (nop)" : "idle"}
-                    </div>
-                  )}
+                <div className="mono-num mt-2 truncate text-[12px] text-foreground">
+                  {slot.instr ? hex(slot.instr) : "bubble / waiting"}
                 </div>
-
-                {slot.note ? (
-                  <div className="mono-num mt-2 truncate text-[9.5px] text-warn">{slot.note}</div>
-                ) : null}
-
-                {fwd.length > 0 && (
-                  <div className="mt-auto flex flex-wrap gap-1 pt-2">
-                    {fwd.map((f, i) => (
-                      <Chip key={`${f.from}-${f.to}-${i}`} tone="violet">
-                        {f.from}→{f.to} x{f.register}
-                      </Chip>
-                    ))}
-                  </div>
-                )}
+                <div className="mono-num mt-1 text-[10.5px] text-muted-foreground">
+                  {slot.pc !== null ? `PC ${hex(slot.pc)}` : "no sample"}
+                </div>
+                {slot.cycle !== null && <div className="mono-num mt-1 text-[10px] text-muted-foreground/80">cycle {slot.cycle}</div>}
               </div>
-            );
-          })}
+            ))}
+          </div>
+
+          <div className="space-y-2 rounded-xl border border-border/70 bg-surface-raised/35 p-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Current instruction metadata</div>
+                <div className="mono-num text-[11px] text-muted-foreground">
+                  {isConnected ? "backend-sourced cycle snapshot" : "waiting for backend snapshots"}
+                </div>
+              </div>
+              <Chip tone="signal">{hex(currentPc)}</Chip>
+            </div>
+            <div className="mono-num break-all rounded-lg border border-border/70 bg-background/40 px-3 py-2 text-[12px] text-foreground">
+              {hex(currentWord)}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {decodeInstruction(currentWord).map(([label, value]) => (
+                <div key={label} className="rounded-lg border border-border/70 bg-background/30 px-2.5 py-2">
+                  <div className="text-[9.5px] uppercase tracking-[0.14em] text-muted-foreground">{label}</div>
+                  <div className="mono-num truncate text-[11.5px] text-foreground">{value}</div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </Panel>
 
       <Panel title="Bypass network" subtitle="live operand routing into EX" className="xl:col-span-5">
         <div className="space-y-2 p-3">
-          {["EX/MEM → EX", "MEM/WB → EX", "Regfile → EX"].map((path) => {
-            const active =
-              (path.startsWith("EX/MEM") && sim.forwarding.some((f) => f.from === "EX/MEM")) ||
-              (path.startsWith("MEM/WB") && sim.forwarding.some((f) => f.from === "MEM/WB")) ||
-              (path.startsWith("Regfile") && sim.forwarding.length === 0);
-            return (
-              <div
-                key={path}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors",
-                  active ? "border-violet-signal/45 bg-violet-signal/10" : "border-border bg-surface-raised/30",
-                )}
-              >
-                <svg viewBox="0 0 120 20" className={cn("h-5 w-28 shrink-0", active && "anim-flow")} aria-hidden="true">
-                  <path
-                    d="M4 10 H80 M80 10 l-6 -5 M80 10 l-6 5"
-                    fill="none"
-                    stroke={active ? "var(--violet-signal)" : "var(--border)"}
-                    strokeWidth="1.5"
-                  />
+          {(forwarding as any[]).length > 0 ? (
+            (forwarding as any[]).slice(0, 8).map((item: any, index: number) => (
+              <div key={`${item.from}-${item.to}-${index}`} className="flex items-center gap-3 rounded-lg border border-border/70 bg-surface-raised/35 px-3 py-2.5">
+                <svg viewBox="0 0 120 20" className="h-5 w-28 shrink-0" aria-hidden="true">
+                  <path d="M4 10 H80 M80 10 l-6 -5 M80 10 l-6 5" fill="none" stroke="var(--signal)" strokeWidth="1.5" />
                 </svg>
-                <span className="mono-num text-[12px] text-foreground/90">{path}</span>
-                <span className={cn("mono-num ml-auto text-[10px]", active ? "text-violet-signal" : "text-muted-foreground")}>
-                  {active ? "ASSERTED" : "idle"}
-                </span>
+                <span className="mono-num text-[12px] text-foreground">{item.path ?? `${item.from} → ${item.to}`}</span>
+                <span className="mono-num ml-auto text-[10px] text-muted-foreground">{item.reason ?? "RAW"}</span>
               </div>
-            );
-          })}
-          <div className="mono-num rounded-lg border border-border bg-surface-raised/30 px-3 py-2 text-[11px] text-muted-foreground">
-            Total bypasses: <span className="text-foreground">{sim.metrics.forwards.toLocaleString()}</span> · load-use
-            interlocks: <span className="text-warn">{sim.metrics.loadUseStalls}</span> · flushes:{" "}
-            <span className="text-fault">{sim.metrics.flushes}</span>
+            ))
+          ) : (
+            <div className="rounded-lg border border-border/70 bg-surface-raised/35 px-3 py-3 text-[12px] text-muted-foreground">
+              No forwarded operands in the current backend snapshot.
+            </div>
+          )}
+          <div className="rounded-lg border border-border bg-background/40 px-3 py-2 text-[11px] text-muted-foreground">
+            Hazards: {(hazards as any[]).length.toLocaleString()} · control signals tracked: {controlSignals.length.toLocaleString()}
           </div>
         </div>
       </Panel>
 
-      <Panel title="Stage trace" subtitle="last 14 cycles" className="xl:col-span-7" bodyClassName="p-0">
-        <table className="w-full border-collapse text-left">
+      <Panel title="Cycle trace" subtitle="recent live samples" className="xl:col-span-7" bodyClassName="p-0">
+        <table className="w-full text-left">
           <thead className="sticky top-0 bg-surface/95 backdrop-blur">
             <tr className="mono-num text-[10px] uppercase tracking-wider text-muted-foreground">
-              <th className="px-3 py-2 font-medium">Cy</th>
-              {STAGES.map((s) => (
-                <th key={s} className="px-2 py-2 font-medium">{s}</th>
-              ))}
+              <th className="px-3 py-2 font-medium">Cycle</th>
+              <th className="px-3 py-2 font-medium">PC</th>
+              <th className="px-3 py-2 font-medium">Instruction</th>
+              <th className="px-3 py-2 font-medium">State</th>
             </tr>
           </thead>
           <tbody>
-            {trace.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-[12px] text-muted-foreground">
-                  No cycles executed yet.
+            {recent.slice(-14).reverse().map((sample, index) => (
+              <tr key={`${sample.cycle}-${sample.pc}-${index}`} className="border-t border-border/50">
+                <td className="mono-num px-3 py-2 text-[11px] text-muted-foreground">{sample.cycle}</td>
+                <td className="mono-num px-3 py-2 text-[11px] text-foreground">{hex(sample.pc)}</td>
+                <td className="mono-num px-3 py-2 text-[11px] text-foreground/90">{hex(sample.instr)}</td>
+                <td className="px-3 py-2">
+                  <div className="flex flex-wrap gap-1">
+                    {index === 0 && <Chip tone="signal">current</Chip>}
+                    {index > 0 && sample.pc === recent[recent.length - 1]?.pc && <Chip tone="warn">stall</Chip>}
+                    {index > 0 && sample.instr !== recent[recent.length - 1]?.instr && <Chip tone="good">advance</Chip>}
+                  </div>
                 </td>
               </tr>
-            ) : (
-              trace.map((c) => (
-                <tr key={c.cycle} className="border-t border-border/50">
-                  <td className="mono-num px-3 py-1.5 text-[11px] text-muted-foreground">{c.cycle}</td>
-                  {STAGES.map((s) => {
-                    const cell = c.stages[s];
-                    return (
-                      <td key={s} className="max-w-[140px] px-2 py-1.5">
-                        <span
-                          className={cn(
-                            "mono-num block truncate text-[10.5px]",
-                            cell.status === "stalled" && "text-warn",
-                            cell.status === "flushed" && "text-fault",
-                            cell.status === "active" && "text-foreground/90",
-                            (cell.status === "bubble" || cell.status === "empty") && "text-muted-foreground/50",
-                          )}
-                        >
-                          {cell.asm ?? (cell.status === "bubble" ? "nop" : "—")}
-                        </span>
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))
+            ))}
+            {recent.length === 0 && (
+              <tr>
+                <td colSpan={4} className="px-3 py-6 text-center text-[12px] text-muted-foreground">
+                  Waiting for backend cycle data.
+                </td>
+              </tr>
             )}
           </tbody>
         </table>
       </Panel>
 
-      <Panel title="Decode detail" subtitle="ID stage field extraction" className="xl:col-span-12">
+      <Panel title="Decode detail" subtitle="ID-stage field extraction" className="xl:col-span-12">
         <div className="grid grid-cols-2 gap-2.5 p-3 sm:grid-cols-4 lg:grid-cols-8">
-          {(() => {
-            const i = sim.slots.ID.instr;
-            const fields: Array<[string, string]> = i
-              ? [
-                  ["opcode", hex(i.word & 0x7f, 2)],
-                  ["rd", `x${i.rd} (${REG_NAMES[i.rd]})`],
-                  ["rs1", i.usesRs1 ? `x${i.rs1} (${REG_NAMES[i.rs1]})` : "—"],
-                  ["rs2", i.usesRs2 ? `x${i.rs2} (${REG_NAMES[i.rs2]})` : "—"],
-                  ["imm", String(i.imm)],
-                  ["class", i.kind],
-                  ["pc", hex(i.pc)],
-                  ["word", hex(i.word)],
-                ]
-              : [["opcode", "—"], ["rd", "—"], ["rs1", "—"], ["rs2", "—"], ["imm", "—"], ["class", "—"], ["pc", "—"], ["word", "—"]];
-            return fields.map(([k, v]) => (
-              <div key={k} className="rounded-lg border border-border/70 bg-surface-raised/40 px-2.5 py-2">
-                <div className="text-[9.5px] uppercase tracking-[0.14em] text-muted-foreground">{k}</div>
-                <div className="mono-num truncate text-[12px] text-foreground">{v}</div>
-              </div>
-            ));
-          })()}
+          {decodeInstruction(currentWord).map(([key, value]) => (
+            <div key={key} className="rounded-lg border border-border/70 bg-surface-raised/40 px-2.5 py-2">
+              <div className="text-[9.5px] uppercase tracking-[0.14em] text-muted-foreground">{key}</div>
+              <div className="mono-num truncate text-[12px] text-foreground">{value}</div>
+            </div>
+          ))}
+          <div className="rounded-lg border border-border/70 bg-surface-raised/40 px-2.5 py-2 sm:col-span-2 lg:col-span-4">
+            <div className="text-[9.5px] uppercase tracking-[0.14em] text-muted-foreground">Signal view</div>
+            <div className="mono-num mt-1 text-[11px] text-foreground/90">{groupBits(hex(currentWord).replace(/^0x/i, ""), 4)}</div>
+          </div>
         </div>
       </Panel>
     </div>

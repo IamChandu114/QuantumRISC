@@ -112,7 +112,14 @@ export class BackendBridge {
 
   /** REST API base URL — uses VITE_API_URL in production, window.origin in dev. */
   private apiBase(): string {
-    return (import.meta.env.VITE_API_URL as string) ?? window.location.origin;
+    const envUrl = import.meta.env.VITE_API_URL as string | undefined;
+    if (envUrl && envUrl.length > 0) return envUrl;
+    
+    // If deployed to Vercel without env vars, forcefully point to Railway
+    if (typeof window !== "undefined" && window.location.hostname.includes("vercel.app")) {
+      return "https://quantumrisc-production.up.railway.app";
+    }
+    return typeof window !== "undefined" ? window.location.origin : "";
   }
 
   /** WebSocket base URL — derived from apiBase, swapping http(s) for ws(s). */

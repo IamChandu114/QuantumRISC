@@ -12,11 +12,13 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BranchRouteImport } from './routes/branch'
 import { Route as CacheRouteImport } from './routes/cache'
+import { Route as FpgaRouteImport } from './routes/fpga'
 import { Route as HazardsRouteImport } from './routes/hazards'
 import { Route as MemoryRouteImport } from './routes/memory'
 import { Route as PerformanceRouteImport } from './routes/performance'
 import { Route as PipelineRouteImport } from './routes/pipeline'
 import { Route as RegistersRouteImport } from './routes/registers'
+import { Route as RtlExplorerRouteImport } from './routes/rtl-explorer'
 import { Route as VerificationRouteImport } from './routes/verification'
 import { Route as WaveformsRouteImport } from './routes/waveforms'
 
@@ -33,6 +35,11 @@ const BranchRoute = BranchRouteImport.update({
 const CacheRoute = CacheRouteImport.update({
   id: '/cache',
   path: '/cache',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FpgaRoute = FpgaRouteImport.update({
+  id: '/fpga',
+  path: '/fpga',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HazardsRoute = HazardsRouteImport.update({
@@ -60,6 +67,11 @@ const RegistersRoute = RegistersRouteImport.update({
   path: '/registers',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RtlExplorerRoute = RtlExplorerRouteImport.update({
+  id: '/rtl-explorer',
+  path: '/rtl-explorer',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const VerificationRoute = VerificationRouteImport.update({
   id: '/verification',
   path: '/verification',
@@ -75,11 +87,13 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/branch': typeof BranchRoute
   '/cache': typeof CacheRoute
+  '/fpga': typeof FpgaRoute
   '/hazards': typeof HazardsRoute
   '/memory': typeof MemoryRoute
   '/performance': typeof PerformanceRoute
   '/pipeline': typeof PipelineRoute
   '/registers': typeof RegistersRoute
+  '/rtl-explorer': typeof RtlExplorerRoute
   '/verification': typeof VerificationRoute
   '/waveforms': typeof WaveformsRoute
 }
@@ -87,11 +101,13 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/branch': typeof BranchRoute
   '/cache': typeof CacheRoute
+  '/fpga': typeof FpgaRoute
   '/hazards': typeof HazardsRoute
   '/memory': typeof MemoryRoute
   '/performance': typeof PerformanceRoute
   '/pipeline': typeof PipelineRoute
   '/registers': typeof RegistersRoute
+  '/rtl-explorer': typeof RtlExplorerRoute
   '/verification': typeof VerificationRoute
   '/waveforms': typeof WaveformsRoute
 }
@@ -100,11 +116,13 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/branch': typeof BranchRoute
   '/cache': typeof CacheRoute
+  '/fpga': typeof FpgaRoute
   '/hazards': typeof HazardsRoute
   '/memory': typeof MemoryRoute
   '/performance': typeof PerformanceRoute
   '/pipeline': typeof PipelineRoute
   '/registers': typeof RegistersRoute
+  '/rtl-explorer': typeof RtlExplorerRoute
   '/verification': typeof VerificationRoute
   '/waveforms': typeof WaveformsRoute
 }
@@ -114,11 +132,13 @@ export interface FileRouteTypes {
     | '/'
     | '/branch'
     | '/cache'
+    | '/fpga'
     | '/hazards'
     | '/memory'
     | '/performance'
     | '/pipeline'
     | '/registers'
+    | '/rtl-explorer'
     | '/verification'
     | '/waveforms'
   fileRoutesByTo: FileRoutesByTo
@@ -126,11 +146,13 @@ export interface FileRouteTypes {
     | '/'
     | '/branch'
     | '/cache'
+    | '/fpga'
     | '/hazards'
     | '/memory'
     | '/performance'
     | '/pipeline'
     | '/registers'
+    | '/rtl-explorer'
     | '/verification'
     | '/waveforms'
   id:
@@ -138,11 +160,13 @@ export interface FileRouteTypes {
     | '/'
     | '/branch'
     | '/cache'
+    | '/fpga'
     | '/hazards'
     | '/memory'
     | '/performance'
     | '/pipeline'
     | '/registers'
+    | '/rtl-explorer'
     | '/verification'
     | '/waveforms'
   fileRoutesById: FileRoutesById
@@ -151,11 +175,13 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BranchRoute: typeof BranchRoute
   CacheRoute: typeof CacheRoute
+  FpgaRoute: typeof FpgaRoute
   HazardsRoute: typeof HazardsRoute
   MemoryRoute: typeof MemoryRoute
   PerformanceRoute: typeof PerformanceRoute
   PipelineRoute: typeof PipelineRoute
   RegistersRoute: typeof RegistersRoute
+  RtlExplorerRoute: typeof RtlExplorerRoute
   VerificationRoute: typeof VerificationRoute
   WaveformsRoute: typeof WaveformsRoute
 }
@@ -181,6 +207,13 @@ declare module '@tanstack/react-router' {
       path: '/cache'
       fullPath: '/cache'
       preLoaderRoute: typeof CacheRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/fpga': {
+      id: '/fpga'
+      path: '/fpga'
+      fullPath: '/fpga'
+      preLoaderRoute: typeof FpgaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/hazards': {
@@ -218,6 +251,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RegistersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/rtl-explorer': {
+      id: '/rtl-explorer'
+      path: '/rtl-explorer'
+      fullPath: '/rtl-explorer'
+      preLoaderRoute: typeof RtlExplorerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/verification': {
       id: '/verification'
       path: '/verification'
@@ -239,11 +279,13 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BranchRoute: BranchRoute,
   CacheRoute: CacheRoute,
+  FpgaRoute: FpgaRoute,
   HazardsRoute: HazardsRoute,
   MemoryRoute: MemoryRoute,
   PerformanceRoute: PerformanceRoute,
   PipelineRoute: PipelineRoute,
   RegistersRoute: RegistersRoute,
+  RtlExplorerRoute: RtlExplorerRoute,
   VerificationRoute: VerificationRoute,
   WaveformsRoute: WaveformsRoute,
 }
