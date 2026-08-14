@@ -22,8 +22,16 @@ function VerificationPage() {
         <div className="space-y-1.5 p-3">
           <div className="rounded-lg border border-border/70 bg-surface-raised/30 px-3 py-3">
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <Metric label="Compile" value={compile?.ok === true ? "PASS" : compile?.ok === false ? "FAIL" : "PENDING"} tone={compile?.ok ? "good" : compile?.ok === false ? "fault" : "warn"} />
-              <Metric label="Run" value={run?.ok === true ? "PASS" : run?.ok === false ? "FAIL" : "PENDING"} tone={run?.ok ? "good" : run?.ok === false ? "fault" : "warn"} />
+              <Metric
+                label="Compile"
+                value={compile?.ok === true ? "PASS" : compile?.ok === false ? "FAIL" : "PENDING"}
+                tone={compile?.ok === true ? "good" : compile?.ok === false ? "fault" : "warn"}
+              />
+              <Metric
+                label="Run"
+                value={run?.ok === true ? "PASS" : run?.ok === false ? "FAIL" : "PENDING"}
+                tone={run?.ok === true ? "good" : run?.ok === false ? "fault" : "warn"}
+              />
               <Metric label="Verification files" value={verificationFiles.length.toLocaleString()} tone="signal" />
               <Metric label="Signals" value={verificationSignals.length.toLocaleString()} tone="warn" />
             </div>

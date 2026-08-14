@@ -103,8 +103,16 @@ function DashboardPage() {
             <div className="mono-num mt-1 text-[12px] text-foreground">{backendState}</div>
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <Metric label="Compile" value={compile?.ok === true ? "PASS" : compile?.ok === false ? "FAIL" : "PENDING"} tone={compile?.ok ? "good" : compile?.ok === false ? "fault" : "warn"} />
-            <Metric label="Run" value={run?.ok === true ? "PASS" : run?.ok === false ? "FAIL" : "PENDING"} tone={run?.ok ? "good" : run?.ok === false ? "fault" : "warn"} />
+            <Metric
+              label="Compile"
+              value={compile?.ok === true ? "PASS" : compile?.ok === false ? "FAIL" : (status === "compiling" ? "COMPILING" : "PENDING")}
+              tone={compile?.ok === true ? "good" : compile?.ok === false ? "fault" : (status === "compiling" ? "signal" : "warn")}
+            />
+            <Metric
+              label="Run"
+              value={run?.ok === true ? "PASS" : run?.ok === false ? "FAIL" : (status === "running" ? "RUNNING" : "PENDING")}
+              tone={run?.ok === true ? "good" : run?.ok === false ? "fault" : (status === "running" ? "good" : "warn")}
+            />
           </div>
           <div className="rounded-lg border border-border/70 bg-surface-raised/40 px-3 py-2">
             <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Topology</div>

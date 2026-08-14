@@ -150,10 +150,19 @@ class SessionManager:
             session.updated_at = datetime.now(timezone.utc)
             save_session(self.settings.sqlite_db_path, session)
 
-    def _source_files(self) -> list[Path]:
-        rtl = sorted((self.settings.repo_root / "rtl").rglob("*.sv"))
-        verification = sorted((self.settings.repo_root / "verification").rglob("*.sv"))
-        return [*rtl, *verification]
+    def _source_files(self, testbench_module: str | None = None) -> list[Path]:
+        all_sv = sorted(self.settings.repo_root.glob("**/*.sv"))
+        # Filter out temporary run/build dirs
+        valid_sv = [
+            p for p in all_sv
+            if "runs" not in p.parts and ".git" not in p.parts and "node_modules" not in p.parts
+        ]
+        if not testbench_module:
+            return valid_sv
+        # Put matching testbench file at the end so top module resolves cleanly
+        def tb_priority(p: Path) -> int:
+            return 1 if p.stem == testbench_module or p.name == f"{testbench_module}.sv" else 0
+        return sorted(valid_sv, key=tb_priority)
 
     def _current_timeline(self, session: SessionRecord) -> list[dict[str, Any]]:
         if not session.timeline:
@@ -226,9 +235,12 @@ class SessionManager:
         try:
             while True:
                 session = self.get(session_id)
-                if session.paused or session.cursor >= max(0, len(session.timeline) - 1):
+                if session.paused:
                     break
-                session.cursor += 1
+                total_len = len(session.timeline)
+                if total_len <= 1:
+                    break
+                session.cursor = (session.cursor + 1) % total_len
                 session.updated_at = datetime.now(timezone.utc)
                 await self._broadcast_state(session_id)
                 await self.broadcast(session_id, {
@@ -239,7 +251,7 @@ class SessionManager:
                         "updated_at": session.updated_at.isoformat(),
                     },
                 })
-                await asyncio.sleep(0.075)
+                await asyncio.sleep(0.08)
         finally:
             self.playback_tasks.pop(session_id, None)
 
@@ -315,7 +327,7 @@ class SessionManager:
             session.updated_at = datetime.now(timezone.utc)
             save_session(self.settings.sqlite_db_path, session)
             await self._broadcast_state(session_id)
-            sources = self._source_files()
+            sources = self._source_files(session.testbench)
             result = await self.compile_manager.compile(sources, session.testbench, session.build_path, session.workdir)
             session.compile = {
                 "ok": result.ok,

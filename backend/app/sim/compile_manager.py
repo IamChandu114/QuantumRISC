@@ -21,7 +21,29 @@ class CompileManager:
 
     async def compile(self, source_files: list[Path], top: str, out_file: Path, workdir: Path) -> CompileResult:
         out_file.parent.mkdir(parents=True, exist_ok=True)
-        cmd = [self.iverilog_path, "-g2012", "-Wall", "-s", top, "-o", str(out_file), *[str(p) for p in source_files]]
+        repo_root = workdir.parent.parent if workdir.parent.name == "runs" else workdir
+        include_dirs = [
+            repo_root / "rtl",
+            repo_root / "rtl" / "common",
+            repo_root / "rtl" / "cpu",
+            repo_root / "rtl" / "memory",
+            repo_root / "rtl" / "pipeline",
+            repo_root / "verification",
+        ]
+        inc_args = []
+        for inc in include_dirs:
+            if inc.exists():
+                inc_args.extend(["-I", str(inc)])
+
+        cmd = [
+            self.iverilog_path,
+            "-g2012",
+            "-Wall",
+            *inc_args,
+            "-s", top,
+            "-o", str(out_file),
+            *[str(p) for p in source_files],
+        ]
         completed = await asyncio.to_thread(self._run_subprocess, cmd, workdir)
         return CompileResult(
             ok=completed.returncode == 0,
@@ -32,7 +54,6 @@ class CompileManager:
         )
 
     def _run_subprocess(self, cmd: list[str], workdir: Path) -> subprocess.CompletedProcess[str]:
-        # Windows is more reliable here when subprocess execution happens in a worker thread.
         return subprocess.run(
             cmd,
             cwd=str(workdir),
