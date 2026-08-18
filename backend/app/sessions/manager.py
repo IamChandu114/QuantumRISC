@@ -151,16 +151,23 @@ class SessionManager:
             save_session(self.settings.sqlite_db_path, session)
 
     def _source_files(self, testbench_module: str | None = None) -> list[Path]:
-        rtl_sv = sorted(self.settings.repo_root.glob("rtl/**/*.sv"))
+        rtl_dir = self.settings.repo_root / "rtl"
+        if not rtl_dir.exists() and (self.settings.backend_root / "rtl").exists():
+            rtl_dir = self.settings.backend_root / "rtl"
+
+        verif_dir = self.settings.repo_root / "verification"
+        if not verif_dir.exists() and (self.settings.backend_root / "verification").exists():
+            verif_dir = self.settings.backend_root / "verification"
+
+        rtl_sv = sorted(rtl_dir.glob("**/*.sv"))
         valid_rtl = [
             p for p in rtl_sv
             if "runs" not in p.parts and ".git" not in p.parts and "node_modules" not in p.parts
         ]
+        tb_files = sorted(verif_dir.glob("**/*.sv"))
         if not testbench_module:
-            tb_files = sorted(self.settings.repo_root.glob("verification/**/*.sv"))
             return valid_rtl + [p for p in tb_files if "runs" not in p.parts and ".git" not in p.parts and "node_modules" not in p.parts]
 
-        tb_files = sorted(self.settings.repo_root.glob("verification/**/*.sv"))
         matching_tb = [
             p for p in tb_files
             if (p.stem == testbench_module or p.name == f"{testbench_module}.sv")

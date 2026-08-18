@@ -25,7 +25,12 @@ class Settings:
 
 def get_settings() -> Settings:
     backend_root = Path(__file__).resolve().parents[2]
-    repo_root = backend_root.parent
+    if (backend_root / "rtl").exists():
+        repo_root = backend_root
+    elif (backend_root.parent / "rtl").exists():
+        repo_root = backend_root.parent
+    else:
+        repo_root = backend_root
     runs_root = repo_root / "runs"
     
     # Cross-platform Icarus Verilog resolution

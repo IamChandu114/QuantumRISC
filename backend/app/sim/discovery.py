@@ -50,8 +50,16 @@ class DiscoveryService:
         return counts
 
     def discover(self) -> DiscoveryResult:
-        rtl_files = self._scan_sv(self.repo_root / "rtl", "rtl")
-        verification_files = self._scan_sv(self.repo_root / "verification", "verification")
+        rtl_dir = self.repo_root / "rtl"
+        if not rtl_dir.exists() and (self.repo_root / "backend" / "rtl").exists():
+            rtl_dir = self.repo_root / "backend" / "rtl"
+
+        verif_dir = self.repo_root / "verification"
+        if not verif_dir.exists() and (self.repo_root / "backend" / "verification").exists():
+            verif_dir = self.repo_root / "backend" / "verification"
+
+        rtl_files = self._scan_sv(rtl_dir, "rtl")
+        verification_files = self._scan_sv(verif_dir, "verification")
         all_files = rtl_files + verification_files
         usage = self._module_usage(all_files)
         modules = []
