@@ -355,7 +355,18 @@ class SessionManager:
             if not session.build_path or not session.build_path.exists():
                 await self.compile(session_id)
             if not session.build_path or not session.build_path.exists():
+                session.run = {
+                    "ok": False,
+                    "returncode": -1,
+                    "stdout": session.compile.get("stdout", ""),
+                    "stderr": session.compile.get("stderr") or "Compilation failed or executable build path does not exist.",
+                    "vcd_path": None,
+                }
+                session.status = "run_error"
+                session.updated_at = datetime.now(timezone.utc)
                 save_session(self.settings.sqlite_db_path, session)
+                await self.broadcast(session_id, {"type": "run.error", "payload": session.run})
+                await self._broadcast_state(session_id)
                 return session.run
             await self.broadcast(session_id, {"type": "run.started", "session_id": session_id})
             session.status = "running"

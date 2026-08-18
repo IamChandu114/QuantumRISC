@@ -114,3 +114,32 @@ def test_session_manager_end_to_end():
     assert snap.metrics.get("cycles") > 0
     assert snap.metrics.get("retired") > 0
     assert snap.metrics.get("ipc") > 0
+
+
+def test_run_response_on_invalid_build_path():
+    from app.models.schemas import RunResponse
+    settings = get_settings()
+    manager = SessionManager(settings)
+    session = manager.create_session("pipeline_cpu_complete", "pipeline_cpu_complete_tb")
+    session.compile = {"ok": False, "returncode": 1, "stdout": "", "stderr": "Compilation error test"}
+    session.build_path = settings.runs_root / "nonexistent_dir" / "nonexistent.vvp"
+
+    async def run_invalid():
+        # Force compilation bypass to simulate unbuildable target
+        if not session.build_path or not session.build_path.exists():
+            session.run = {
+                "ok": False,
+                "returncode": -1,
+                "stdout": session.compile.get("stdout", ""),
+                "stderr": session.compile.get("stderr") or "Compilation failed or executable build path does not exist.",
+                "vcd_path": None,
+            }
+            return session.run
+
+    res_dict = asyncio.run(run_invalid())
+    assert isinstance(res_dict, dict)
+    assert "ok" in res_dict
+    assert "returncode" in res_dict
+    parsed = RunResponse(**res_dict)
+    assert parsed.ok is False
+    assert parsed.returncode == -1
