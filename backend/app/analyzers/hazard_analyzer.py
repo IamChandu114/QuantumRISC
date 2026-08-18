@@ -38,30 +38,25 @@ class HazardAnalyzer:
 
     def _program_events(self, timeline: list[dict[str, Any]]) -> list[dict[str, Any]]:
         events: list[dict[str, Any]] = []
-        seen: set[int] = set()
+        last_pc = None
         for sample in timeline:
             changed = sample.get("changed", {})
             pc = self._to_int(
                 changed.get("pipeline_cpu_complete_tb.DUT.PC.pc_current [31:0]")
                 or changed.get("cpu_top_tb.dut.pc_debug [31:0]")
             )
-            rd = self._to_int(
-                changed.get("pipeline_cpu_complete_tb.DUT.RF.rd [4:0]")
-                or changed.get("cpu_top_tb.dut.rd [4:0]")
-            )
             instr = self._to_int(
                 changed.get("pipeline_cpu_complete_tb.DUT.if_instruction [31:0]")
                 or changed.get("cpu_top_tb.dut.instruction_debug [31:0]")
                 or changed.get("cpu_top_tb.dut.instruction [31:0]")
             )
-            writeback = self._to_int(
-                changed.get("pipeline_cpu_complete_tb.DUT.RF.write_data [31:0]")
-                or changed.get("cpu_top_tb.dut.alu_result [31:0]")
-            )
-            if rd is None or instr is None or rd == 0 or rd in seen or writeback is None or writeback == 0:
+            if instr is None or instr == 0:
                 continue
-            seen.add(rd)
-            events.append({"pc": pc if pc is not None else len(events) * 4, "rd": rd, "instr": instr})
+            if pc is not None and pc == last_pc:
+                continue
+            if pc is not None:
+                last_pc = pc
+            events.append({"pc": pc if pc is not None else len(events) * 4, "instr": instr})
         return events
 
     def _to_int(self, value: Any) -> int | None:

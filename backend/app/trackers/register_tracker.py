@@ -31,7 +31,6 @@ class RegisterTracker:
 
     def _program_events(self, timeline: list[dict[str, Any]]) -> list[dict[str, Any]]:
         events: list[dict[str, Any]] = []
-        seen: set[int] = set()
         for sample in timeline:
             changed = sample.get("changed", {})
             rd = self._to_int(
@@ -42,15 +41,12 @@ class RegisterTracker:
                 changed.get("pipeline_cpu_complete_tb.DUT.RF.write_data [31:0]")
                 or changed.get("cpu_top_tb.dut.alu_result [31:0]")
             )
-            instr = self._to_int(
-                changed.get("pipeline_cpu_complete_tb.DUT.if_instruction [31:0]")
-                or changed.get("cpu_top_tb.dut.instruction_debug [31:0]")
-                or changed.get("cpu_top_tb.dut.instruction [31:0]")
-            )
-            if rd is None or instr is None or rd == 0 or rd in seen or writeback is None or writeback == 0:
+            regwrite = changed.get("pipeline_cpu_complete_tb.DUT.RegWrite") or changed.get("pipeline_cpu_complete_tb.DUT.RF.we") or changed.get("cpu_top_tb.dut.RegWrite")
+            if regwrite is not None and str(regwrite).strip() == "0":
                 continue
-            seen.add(rd)
-            events.append({"rd": rd, "instr": instr, "writeback": writeback})
+            if rd is None or rd == 0 or writeback is None:
+                continue
+            events.append({"rd": rd, "writeback": writeback})
         return events
 
     def _to_int(self, value: Any) -> int | None:

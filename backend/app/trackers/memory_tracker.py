@@ -16,26 +16,22 @@ class MemoryTracker:
 
     def _program_events(self, timeline: list[dict[str, Any]]) -> list[dict[str, Any]]:
         events: list[dict[str, Any]] = []
-        seen: set[int] = set()
+        seen_pcs: set[int] = set()
         for sample in timeline:
             changed = sample.get("changed", {})
-            rd = self._to_int(
-                changed.get("pipeline_cpu_complete_tb.DUT.RF.rd [4:0]")
-                or changed.get("cpu_top_tb.dut.rd [4:0]")
+            pc = self._to_int(
+                changed.get("pipeline_cpu_complete_tb.DUT.PC.pc_current [31:0]")
+                or changed.get("cpu_top_tb.dut.pc_debug [31:0]")
             )
             instr = self._to_int(
                 changed.get("pipeline_cpu_complete_tb.DUT.if_instruction [31:0]")
                 or changed.get("cpu_top_tb.dut.instruction_debug [31:0]")
                 or changed.get("cpu_top_tb.dut.instruction [31:0]")
             )
-            writeback = self._to_int(
-                changed.get("pipeline_cpu_complete_tb.DUT.RF.write_data [31:0]")
-                or changed.get("cpu_top_tb.dut.alu_result [31:0]")
-            )
-            if rd is None or instr is None or rd == 0 or rd in seen or writeback is None or writeback == 0:
+            if pc is None or instr is None or pc in seen_pcs:
                 continue
-            seen.add(rd)
-            events.append({"rd": rd, "instr": instr})
+            seen_pcs.add(pc)
+            events.append({"pc": pc, "instr": instr})
         return events
 
     def _to_int(self, value: Any) -> int | None:

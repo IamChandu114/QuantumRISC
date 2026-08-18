@@ -35,10 +35,21 @@ class VCDParser:
             return result
 
         current_scope: list[str] = []
-        code_to_name: dict[str, VCDSignal] = {}
+        code_to_signals: dict[str, list[VCDSignal]] = {}
         current_time = 0
         current_values: dict[str, str] = {}
         in_definitions = True
+        has_pending_changes = False
+
+        def commit_sample(time_val: int) -> None:
+            nonlocal has_pending_changes
+            if has_pending_changes or not result.timeline:
+                result.timeline.append({
+                    "time": time_val,
+                    "changed": dict(current_values),
+                })
+                result.max_time = max(result.max_time, time_val)
+                has_pending_changes = False
 
         for raw_line in path.read_text(encoding="utf-8", errors="ignore").splitlines():
             line = raw_line.strip()
@@ -61,7 +72,7 @@ class VCDParser:
                     name = m.group(3).strip()
                     scope = ".".join(current_scope)
                     sig = VCDSignal(code=code, name=name, scope=scope, size=size)
-                    code_to_name[code] = sig
+                    code_to_signals.setdefault(code, []).append(sig)
                     result.signals[sig.full_name] = sig
                 continue
             if line.startswith("$enddefinitions"):
@@ -69,27 +80,37 @@ class VCDParser:
                 continue
             if in_definitions:
                 continue
+
             if line.startswith("#"):
-                current_time = int(line[1:])
+                new_time = int(line[1:])
+                if has_pending_changes:
+                    commit_sample(current_time)
+                current_time = new_time
+                continue
+
+            if line.startswith("$dumpvars") or line.startswith("$dumpall") or line.startswith("$end") or line.startswith("$comment"):
                 continue
 
             if line[0] in "01xzXZ":
                 value = line[0]
                 code = line[1:]
-                sig = code_to_name.get(code)
-                if sig:
+                signals = code_to_signals.get(code, [])
+                for sig in signals:
                     current_values[sig.full_name] = value
-            elif line[0] == "b":
-                bits, code = line[1:].split(maxsplit=1)
-                sig = code_to_name.get(code)
-                if sig:
-                    current_values[sig.full_name] = bits
+                if signals:
+                    has_pending_changes = True
+            elif line[0] == "b" or line[0] == "B":
+                parts = line[1:].split(maxsplit=1)
+                if len(parts) == 2:
+                    bits, code = parts
+                    signals = code_to_signals.get(code, [])
+                    for sig in signals:
+                        current_values[sig.full_name] = bits
+                    if signals:
+                        has_pending_changes = True
 
-            result.timeline.append({
-                "time": current_time,
-                "changed": dict(current_values),
-            })
-            result.max_time = max(result.max_time, current_time)
+        if has_pending_changes or not result.timeline:
+            commit_sample(current_time)
 
         if result.timeline:
             result.samples = result.timeline[-1]["changed"]

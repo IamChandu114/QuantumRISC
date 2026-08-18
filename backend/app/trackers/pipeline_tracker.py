@@ -7,17 +7,25 @@ class PipelineTracker:
     def snapshot(self, timeline: list[dict[str, Any]]) -> dict[str, Any]:
         changed = timeline[-1].get("changed", {}) if timeline else {}
         return {
-            "pc": self._fmt(changed.get("pipeline_cpu_complete_tb.DUT.PC.pc_current [31:0]") or changed.get("cpu_top_tb.dut.pc_debug [31:0]")),
-            "instruction": self._fmt(changed.get("pipeline_cpu_complete_tb.DUT.if_instruction [31:0]") or changed.get("cpu_top_tb.dut.instruction_debug [31:0]") or changed.get("cpu_top_tb.dut.instruction [31:0]")),
-            "opcode": self._fmt(changed.get("pipeline_cpu_complete_tb.DUT.opcode [6:0]") or changed.get("cpu_top_tb.dut.opcode [6:0]")),
-            "rs1": self._fmt(changed.get("pipeline_cpu_complete_tb.DUT.rs1 [4:0]") or changed.get("cpu_top_tb.dut.rs1 [4:0]")),
-            "rs2": self._fmt(changed.get("pipeline_cpu_complete_tb.DUT.rs2 [4:0]") or changed.get("cpu_top_tb.dut.rs2 [4:0]")),
-            "rd": self._fmt(changed.get("pipeline_cpu_complete_tb.DUT.rd [4:0]") or changed.get("cpu_top_tb.dut.rd [4:0]")),
-            "immediate": self._fmt(changed.get("pipeline_cpu_complete_tb.DUT.immediate [31:0]") or changed.get("cpu_top_tb.dut.immediate [31:0]")),
-            "alu_result": self._fmt(changed.get("pipeline_cpu_complete_tb.DUT.alu_result [31:0]") or changed.get("cpu_top_tb.dut.alu_result [31:0]")),
-            "writeback_data": self._fmt(changed.get("pipeline_cpu_complete_tb.DUT.writeback_data [31:0]") or changed.get("cpu_top_tb.dut.alu_result [31:0]")),
-            "regwrite": self._fmt(changed.get("pipeline_cpu_complete_tb.DUT.RegWrite") or changed.get("cpu_top_tb.dut.RegWrite")),
+            "pc": self._fmt(self._get_signal(changed, ["pc_current", "if_pc", "pc_debug", "pc_out", "pc"])),
+            "instruction": self._fmt(self._get_signal(changed, ["if_instruction", "instruction_debug", "instruction_out", "instruction"])),
+            "opcode": self._fmt(self._get_signal(changed, ["opcode"])),
+            "rs1": self._fmt(self._get_signal(changed, ["rs1"])),
+            "rs2": self._fmt(self._get_signal(changed, ["rs2"])),
+            "rd": self._fmt(self._get_signal(changed, ["rd"])),
+            "immediate": self._fmt(self._get_signal(changed, ["immediate"])),
+            "alu_result": self._fmt(self._get_signal(changed, ["alu_result", "result"])),
+            "writeback_data": self._fmt(self._get_signal(changed, ["writeback_data", "write_data"])),
+            "regwrite": self._fmt(self._get_signal(changed, ["RegWrite", "we"])),
         }
+
+    def _get_signal(self, changed: dict[str, Any], candidates: list[str]) -> Any:
+        for cand in candidates:
+            for key, val in changed.items():
+                lower = key.lower()
+                if lower.endswith(f".{cand}") or f".{cand} " in lower or lower.endswith(f".{cand} [") or key == cand:
+                    return val
+        return None
 
     def _fmt(self, value: Any) -> str:
         if value is None:

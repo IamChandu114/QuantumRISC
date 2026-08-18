@@ -151,18 +151,22 @@ class SessionManager:
             save_session(self.settings.sqlite_db_path, session)
 
     def _source_files(self, testbench_module: str | None = None) -> list[Path]:
-        all_sv = sorted(self.settings.repo_root.glob("**/*.sv"))
-        # Filter out temporary run/build dirs
-        valid_sv = [
-            p for p in all_sv
+        rtl_sv = sorted(self.settings.repo_root.glob("rtl/**/*.sv"))
+        valid_rtl = [
+            p for p in rtl_sv
             if "runs" not in p.parts and ".git" not in p.parts and "node_modules" not in p.parts
         ]
         if not testbench_module:
-            return valid_sv
-        # Put matching testbench file at the end so top module resolves cleanly
-        def tb_priority(p: Path) -> int:
-            return 1 if p.stem == testbench_module or p.name == f"{testbench_module}.sv" else 0
-        return sorted(valid_sv, key=tb_priority)
+            tb_files = sorted(self.settings.repo_root.glob("verification/**/*.sv"))
+            return valid_rtl + [p for p in tb_files if "runs" not in p.parts and ".git" not in p.parts and "node_modules" not in p.parts]
+
+        tb_files = sorted(self.settings.repo_root.glob("verification/**/*.sv"))
+        matching_tb = [
+            p for p in tb_files
+            if (p.stem == testbench_module or p.name == f"{testbench_module}.sv")
+            and "runs" not in p.parts and ".git" not in p.parts and "node_modules" not in p.parts
+        ]
+        return valid_rtl + matching_tb
 
     def _current_timeline(self, session: SessionRecord) -> list[dict[str, Any]]:
         if not session.timeline:
@@ -414,12 +418,13 @@ class SessionManager:
     def snapshot(self, session_id: str) -> SessionSnapshot:
         session = self.get(session_id)
         timeline = self._current_timeline(session)
+        full_timeline = session.timeline if session.timeline else timeline
         registers = self.register_tracker.snapshot(timeline)
         memory = self.memory_tracker.snapshot(timeline)
         pipeline = self.pipeline_tracker.snapshot(timeline)
-        hazards = self.hazard_analyzer.analyze(timeline)
+        hazards = self.hazard_analyzer.analyze(full_timeline)
         forwarding = self.forwarding_analyzer.analyze(hazards)
-        metrics = self.metrics_engine.analyze(timeline, hazards)
+        metrics = self.metrics_engine.analyze(full_timeline, hazards)
         current_sample = timeline[-1]["changed"] if timeline else {}
         discovery = self._discovery_payload()
         signal_names = list(session.parsed.get("signals", []))
