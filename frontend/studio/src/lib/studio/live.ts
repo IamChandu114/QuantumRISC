@@ -73,10 +73,22 @@ export function groupBits(bits: string, size = 4): string {
   return bits.replace(new RegExp(`(.{${size}})(?=.)`, "g"), "$1 ");
 }
 
+/**
+ * Derive the current simulation cycle.
+ *
+ * Priority:
+ *   1. metrics.cycles  — authoritative cycle count from backend analysis
+ *   2. playback.cursor — step cursor (0 after reset, not the real cycle count)
+ *
+ * NOTE: playback.cursor is intentionally checked LAST because it starts at 0
+ * after every reset even if the simulation has 20 cycles of data.
+ */
 export function currentCycle(playback: any, metrics: any): number {
+  const fromMetrics = asNumber(metrics?.["cycles"], -1);
+  if (fromMetrics > 0) return fromMetrics;
   const fromPlayback = asNumber(playback?.["cursor"] ?? playback?.["cycle"], -1);
   if (fromPlayback >= 0) return fromPlayback;
-  return asNumber(metrics?.["cycles"], 0);
+  return 0;
 }
 
 export function currentStatusLabel(status: string, connected: boolean, transportState?: string): string {
@@ -163,15 +175,22 @@ export function programEvent(sample: any): { pc: number; instr: number; cycle: n
   return { pc, instr, cycle: asNumber(sample.time, 0) };
 }
 
+/**
+ * Build program execution history from VCD timeline samples.
+ *
+ * IMPORTANT: Do NOT deduplicate by (pc, instr) pair — this discards valid
+ * repeated instructions (NOPs, same-PC stalls, loop bodies). Use cycle/time
+ * as the unique key so every VCD timestamp produces exactly one history entry.
+ */
 export function derivedProgramHistory(samples: any[], limit = 96): Array<{ cycle: number; pc: number; instr: number }> {
   const events: Array<{ cycle: number; pc: number; instr: number }> = [];
-  const seen = new Set<string>();
+  const seenCycles = new Set<number>();
   for (const sample of samples) {
     const evt = programEvent(sample);
     if (!evt) continue;
-    const key = `${evt.pc}:${evt.instr}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
+    // Deduplicate only by cycle timestamp — each timestamp is one unique sample
+    if (seenCycles.has(evt.cycle)) continue;
+    seenCycles.add(evt.cycle);
     events.push(evt);
   }
   return events.slice(-limit);

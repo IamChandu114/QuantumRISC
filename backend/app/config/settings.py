@@ -25,13 +25,29 @@ class Settings:
 
 def get_settings() -> Settings:
     backend_root = Path(__file__).resolve().parents[2]
-    if (backend_root / "rtl").exists():
+
+    # Allow explicit override for container deployments where the repo
+    # root cannot be inferred reliably from the Python file location.
+    env_repo_root = os.getenv("QUANTUMRISC_REPO_ROOT")
+    if env_repo_root:
+        repo_root = Path(env_repo_root).resolve()
+    elif (backend_root / "rtl").exists():
+        # Local layout: backend_root IS the repo root (dev install with no wrapper)
         repo_root = backend_root
     elif (backend_root.parent / "rtl").exists():
+        # Normal layout: backend_root/.. is the repo root
         repo_root = backend_root.parent
+    elif Path("/app/backend/rtl").exists():
+        # Docker / Railway: WORKDIR=/app/backend, repo root has rtl/ alongside backend/
+        repo_root = Path("/app/backend")
+    elif Path("/app/rtl").exists():
+        # Alternative Docker layout
+        repo_root = Path("/app")
     else:
         repo_root = backend_root
+
     runs_root = repo_root / "runs"
+
     
     # Cross-platform Icarus Verilog resolution
     is_windows = platform.system() == "Windows"

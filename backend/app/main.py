@@ -77,7 +77,11 @@ async def startup_validation():
     logger.info("QuantumRISC v1.0 Production Backend Starting Up")
     logger.info(f"Operating System: {platform.system()} ({platform.machine()})")
     logger.info(f"Active CORS Origins: {settings.cors_origins}")
-    
+    logger.info(f"Repo root: {settings.repo_root} (exists={settings.repo_root.exists()})")
+    logger.info(f"RTL dir: {settings.repo_root / 'rtl'} (exists={(settings.repo_root / 'rtl').exists()})")
+    logger.info(f"Verification dir: {settings.repo_root / 'verification'} (exists={(settings.repo_root / 'verification').exists()})")
+
+
     # 1. Validate SQLite session DB path
     try:
         settings.sqlite_db_path.parent.mkdir(parents=True, exist_ok=True)

@@ -23,7 +23,8 @@ function DashboardPage() {
   const samples = useMemo(() => timelineSamples(waveforms), [waveforms]);
   const history = useMemo(() => derivedProgramHistory(samples, 160), [samples]);
 
-  const cycle = currentCycle(playback, metrics);
+  // Prefer metrics.cycles (authoritative backend count) over playback.cursor (step offset)
+  const cycle = asNumber(metrics?.cycles, 0) || currentCycle(playback, metrics);
   const retired = asNumber(metrics?.retired, 0);
   const stalls = asNumber(metrics?.stalls ?? metrics?.stallCycles, 0);
   const flushes = asNumber(metrics?.flushes, 0);
@@ -32,6 +33,36 @@ function DashboardPage() {
   const cpi = asNumber(metrics?.cpi, 0);
   const backendState = currentStatusLabel(status, isConnected, transportState);
   const stallRate = cycle > 0 ? stalls / cycle : 0;
+
+  // Derive compile/run display values from both the explicit ok flag
+  // AND the session status so the UI shows the right state while WS is still connecting.
+  const simulationActive = status === "running" || status === "finished" || status === "paused";
+  const compileValue = compile?.ok === true || simulationActive
+    ? "PASS"
+    : compile?.ok === false
+      ? "FAIL"
+      : status === "compiling"
+        ? "COMPILING"
+        : "PENDING";
+  const compileTone: "good" | "fault" | "signal" | "warn" =
+    compile?.ok === true || simulationActive
+      ? "good"
+      : compile?.ok === false
+        ? "fault"
+        : status === "compiling"
+          ? "signal"
+          : "warn";
+  const runValue = run?.ok === true || simulationActive
+    ? "PASS"
+    : run?.ok === false
+      ? "FAIL"
+      : "PENDING";
+  const runTone: "good" | "fault" | "warn" =
+    run?.ok === true || simulationActive
+      ? "good"
+      : run?.ok === false
+        ? "fault"
+        : "warn";
 
   const quickFacts = [
     { label: "IPC", value: ipc.toFixed(3), tone: "signal" as const, hint: `CPI ${cpi.toFixed(3)}` },
@@ -105,13 +136,13 @@ function DashboardPage() {
           <div className="grid grid-cols-2 gap-2">
             <Metric
               label="Compile"
-              value={compile?.ok === true ? "PASS" : compile?.ok === false ? "FAIL" : (status === "compiling" ? "COMPILING" : "PENDING")}
-              tone={compile?.ok === true ? "good" : compile?.ok === false ? "fault" : (status === "compiling" ? "signal" : "warn")}
+              value={compileValue}
+              tone={compileTone}
             />
             <Metric
               label="Run"
-              value={run?.ok === true ? "PASS" : run?.ok === false ? "FAIL" : (status === "running" ? "RUNNING" : "PENDING")}
-              tone={run?.ok === true ? "good" : run?.ok === false ? "fault" : (status === "running" ? "good" : "warn")}
+              value={runValue}
+              tone={runTone}
             />
           </div>
           <div className="rounded-lg border border-border/70 bg-surface-raised/40 px-3 py-2">
