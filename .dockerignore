@@ -1,0 +1,58 @@
+# Git and version control
+.git
+.gitignore
+.github
+
+# Node/frontend build artifacts (if any)
+node_modules
+dist
+build
+*.log
+npm-debug.log
+yarn-error.log
+
+# Python artifacts
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+.pytest_cache
+.coverage
+htmlcov
+.tox
+venv
+.venv
+
+# IDE/Editor files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OS files
+.gitkeep
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.bak
+*.temp
+
+# Docker-specific (don't include Docker files in image)
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# CI/CD
+.circleci
+.gitlab-ci.yml
+
+# Documentation and misc
+*.md
+CHANGELOG.md
+README.md
+CONTRIBUTING.md
+LICENSE
+docs/

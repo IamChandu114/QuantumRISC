@@ -16,8 +16,9 @@ class Settings:
     host: str
     port: int
     cors_origins: list[str]
+    cors_origin_regex: str | None
     sqlite_db_path: Path
-    default_top: str = "pipeline_cpu_complete_tb"
+    default_top: str = "pipeline_cpu_complete"
     smoke_top: str = "cpu_top_tb"
     iverilog_path: str = "iverilog"
     vvp_path: str = "vvp"
@@ -38,7 +39,7 @@ def get_settings() -> Settings:
         # Normal layout: backend_root/.. is the repo root
         repo_root = backend_root.parent
     elif Path("/app/backend/rtl").exists():
-        # Docker / Railway: WORKDIR=/app/backend, repo root has rtl/ alongside backend/
+        # Compatibility layout: WORKDIR=/app/backend with RTL beside the app.
         repo_root = Path("/app/backend")
     elif Path("/app/rtl").exists():
         # Alternative Docker layout
@@ -49,12 +50,14 @@ def get_settings() -> Settings:
     runs_root = repo_root / "runs"
 
     
-    # Cross-platform Icarus Verilog resolution
+    # Cross-platform Icarus Verilog resolution. The standard environment
+    # variable names are intentionally supported for Docker and Render; the
+    # legacy QuantumRISC names remain compatible with existing local setups.
     is_windows = platform.system() == "Windows"
     
     # Check env vars first
-    env_iverilog = os.getenv("QUANTUMRISC_IVERILOG")
-    env_vvp = os.getenv("QUANTUMRISC_VVP")
+    env_iverilog = os.getenv("IVERILOG_PATH") or os.getenv("QUANTUMRISC_IVERILOG")
+    env_vvp = os.getenv("VVP_PATH") or os.getenv("QUANTUMRISC_VVP")
     
     if env_iverilog:
         iverilog_path = env_iverilog
@@ -78,15 +81,14 @@ def get_settings() -> Settings:
     else:
         vvp_path = shutil.which("vvp") or "vvp"
 
-    # CORS configuration — default allows Vercel frontend + wildcard for local dev
+    # Explicit origins are required when credentials are enabled. Vercel preview
+    # deployments are covered by the regular expression below.
     cors_raw = os.getenv(
         "CORS_ORIGINS",
-        "https://quantum-risc.vercel.app,https://quantum-risc-*.vercel.app,http://localhost:5173,http://localhost:8000,*"
+        "https://quantum-risc.vercel.app,http://localhost:5173,http://localhost:8000,http://127.0.0.1:5173,http://127.0.0.1:8000"
     )
-    if cors_raw == "*":
-        cors_origins = ["*"]
-    else:
-        cors_origins = [orig.strip() for orig in cors_raw.split(",") if orig.strip()]
+    cors_origins = [orig.strip() for orig in cors_raw.split(",") if orig.strip() and orig.strip() != "*"]
+    cors_origin_regex = os.getenv("CORS_ORIGIN_REGEX", r"https://quantum-risc(?:-[a-z0-9-]+)?\.vercel\.app")
 
     # SQLite DB location
     sqlite_raw = os.getenv("SQLITE_DB_PATH", "runs/sessions.db")
@@ -102,6 +104,7 @@ def get_settings() -> Settings:
         host=os.getenv("HOST", "0.0.0.0"),
         port=int(os.getenv("PORT", "8000")),
         cors_origins=cors_origins,
+        cors_origin_regex=cors_origin_regex or None,
         sqlite_db_path=sqlite_db_path,
         iverilog_path=iverilog_path,
         vvp_path=vvp_path,

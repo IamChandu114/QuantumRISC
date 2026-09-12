@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: quantumrisc-backend
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    autoDeploy: true

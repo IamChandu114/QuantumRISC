@@ -4,29 +4,32 @@ FROM python:3.11-slim
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     iverilog \
-    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
-WORKDIR /app/backend
+WORKDIR /app
 
 # Install Python requirements
-COPY requirements.txt ./requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+COPY backend/requirements.txt ./backend/requirements.txt
+RUN pip install --no-cache-dir -r backend/requirements.txt
 
 # Copy project
-COPY . /app/backend
+COPY backend /app/backend
+COPY rtl /app/rtl
+COPY verification /app/verification
 
 # Environment variables
 ENV HOST=0.0.0.0
-ENV CORS_ORIGINS=*
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV QUANTUMRISC_REPO_ROOT=/app
+ENV IVERILOG_PATH=iverilog
+ENV VVP_PATH=vvp
+ENV CORS_ORIGINS=https://quantum-risc.vercel.app
 ENV SQLITE_DB_PATH=runs/sessions.db
-ENV QUANTUMRISC_IVERILOG=iverilog
-ENV QUANTUMRISC_VVP=vvp
-ENV PORT=8080
 
-# Railway will provide PORT automatically, defaulting to 8080
-EXPOSE 8080
+# Render provides PORT at runtime; 8000 remains the local default.
+EXPOSE 8000
 
 # Start server
-CMD ["sh", "-c", "python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080}"]
+CMD ["sh", "-c", "cd /app/backend && python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

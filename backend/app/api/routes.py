@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from pathlib import Path
+import shutil
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.encoders import jsonable_encoder
 
@@ -34,7 +36,17 @@ def build_router(manager: SessionManager) -> APIRouter:
 
     @router.get("/api/health")
     async def health():
-        return {"ok": True}
+        repo_available = (manager.settings.repo_root / "rtl").is_dir() and (manager.settings.repo_root / "verification").is_dir()
+        iverilog_available = bool(shutil.which(manager.settings.iverilog_path) or Path(manager.settings.iverilog_path).is_file())
+        vvp_available = bool(shutil.which(manager.settings.vvp_path) or Path(manager.settings.vvp_path).is_file())
+        database_available = manager.settings.sqlite_db_path.parent.is_dir()
+        checks = {
+            "repository": "available" if repo_available else "unavailable",
+            "iverilog": "available" if iverilog_available else "unavailable",
+            "vvp": "available" if vvp_available else "unavailable",
+            "sqlite": "available" if database_available else "unavailable",
+        }
+        return {"ok": all((repo_available, iverilog_available, vvp_available, database_available)), "status": "healthy" if all((repo_available, iverilog_available, vvp_available, database_available)) else "degraded", "checks": checks}
 
     @router.get("/api/discovery", response_model=DiscoveryResponse)
     async def discovery():

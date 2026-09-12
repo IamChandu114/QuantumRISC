@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 import asyncio
 import logging
+import re
 import uuid
 from typing import Any
 
@@ -68,17 +69,34 @@ class SessionManager:
         # SQLite persistence initialization
         init_db(settings.sqlite_db_path)
         self.sessions: dict[str, SessionRecord] = load_sessions(settings.sqlite_db_path)
+        for session_id, session in list(self.sessions.items()):
+            try:
+                self._restore_session_paths(session)
+            except ValueError:
+                logger.warning("Ignoring persisted session with an invalid identifier")
+                self.sessions.pop(session_id)
         
         self.subscribers: dict[str, list[asyncio.Queue]] = {}
         self.playback_tasks: dict[str, asyncio.Task] = {}
+
+    def _restore_session_paths(self, session: SessionRecord) -> None:
+        """Rebuild ephemeral artifact paths after a service restart or host move."""
+        if not re.fullmatch(r"[0-9a-f]{12}", session.id):
+            raise ValueError("Invalid persisted session identifier")
+        session.workdir = self.settings.runs_root / session.id
+        session.build_path = session.workdir / "build" / f"{session.id}.vvp"
+        session.output_path = session.workdir
+        if session.vcd_path and not session.vcd_path.exists():
+            session.vcd_path = None
+            session.run = {}
+            session.compile = {}
+            session.status = "created"
 
     def create_session(self, top: str, testbench: str) -> SessionRecord:
         session_id = uuid.uuid4().hex[:12]
         now = datetime.now(timezone.utc)
         record = SessionRecord(id=session_id, top=top, testbench=testbench, created_at=now, updated_at=now)
-        record.workdir = self.settings.runs_root / session_id
-        record.build_path = record.workdir / "build" / f"{session_id}.vvp"
-        record.output_path = record.workdir
+        self._restore_session_paths(record)
         record.workdir.mkdir(parents=True, exist_ok=True)
         self.sessions[session_id] = record
         self.subscribers[session_id] = []
@@ -340,11 +358,14 @@ class SessionManager:
             await self._broadcast_state(session_id)
             sources = self._source_files(session.testbench)
             result = await self.compile_manager.compile(sources, session.testbench, session.build_path, session.workdir)
+            stderr = result.stderr
+            if not result.ok and not stderr.startswith(("IVERILOG_UNAVAILABLE", "BACKEND_CONFIGURATION_ERROR", "COMPILATION_FAILED")):
+                stderr = f"COMPILATION_FAILED: {stderr}"
             session.compile = {
                 "ok": result.ok,
                 "returncode": result.returncode,
                 "stdout": result.stdout,
-                "stderr": result.stderr,
+                "stderr": stderr,
                 "executable": str(result.executable) if result.executable else None,
             }
             session.updated_at = datetime.now(timezone.utc)
@@ -381,11 +402,14 @@ class SessionManager:
             save_session(self.settings.sqlite_db_path, session)
             await self._broadcast_state(session_id)
             result = await self.run_manager.run(session.build_path, session.workdir)
+            stderr = result.stderr
+            if not result.ok and not stderr.startswith(("VVP_UNAVAILABLE", "SIMULATION_FAILED", "VCD_NOT_GENERATED")):
+                stderr = f"SIMULATION_FAILED: {stderr}"
             session.run = {
                 "ok": result.ok,
                 "returncode": result.returncode,
                 "stdout": result.stdout,
-                "stderr": result.stderr,
+                "stderr": stderr,
                 "vcd_path": str(result.vcd_path) if result.vcd_path else None,
             }
             session.vcd_path = result.vcd_path

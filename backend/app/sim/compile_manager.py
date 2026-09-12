@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import asyncio
+import shutil
 import subprocess
 
 
@@ -21,6 +22,11 @@ class CompileManager:
 
     async def compile(self, source_files: list[Path], top: str, out_file: Path, workdir: Path) -> CompileResult:
         out_file.parent.mkdir(parents=True, exist_ok=True)
+        compiler = shutil.which(self.iverilog_path) or (self.iverilog_path if Path(self.iverilog_path).is_file() else None)
+        if not compiler:
+            return CompileResult(False, -1, "", "IVERILOG_UNAVAILABLE: Icarus Verilog compiler unavailable.")
+        if not source_files:
+            return CompileResult(False, -1, "", "BACKEND_CONFIGURATION_ERROR: No RTL or verification source files were discovered.")
         repo_root = workdir.parent.parent if workdir.parent.name == "runs" else workdir
         include_dirs = [
             repo_root / "rtl",
@@ -36,7 +42,7 @@ class CompileManager:
                 inc_args.extend(["-I", str(inc)])
 
         cmd = [
-            self.iverilog_path,
+            compiler,
             "-g2012",
             "-Wall",
             *inc_args,
@@ -44,7 +50,12 @@ class CompileManager:
             "-o", str(out_file),
             *[str(p) for p in source_files],
         ]
-        completed = await asyncio.to_thread(self._run_subprocess, cmd, workdir)
+        try:
+            completed = await asyncio.to_thread(self._run_subprocess, cmd, workdir)
+        except subprocess.TimeoutExpired as exc:
+            return CompileResult(False, -1, exc.stdout or "", "COMPILATION_FAILED: Icarus Verilog compilation timed out.")
+        except OSError as exc:
+            return CompileResult(False, -1, "", f"COMPILATION_FAILED: Unable to start Icarus Verilog: {exc}")
         return CompileResult(
             ok=completed.returncode == 0,
             returncode=completed.returncode or 0,
@@ -60,4 +71,5 @@ class CompileManager:
             capture_output=True,
             text=True,
             check=False,
+            timeout=60,
         )
