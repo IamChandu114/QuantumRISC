@@ -177,9 +177,13 @@ export const useStudioStore = create<StudioState>((set, get) => ({
     if (bootstrapPromise) return bootstrapPromise;
     bootstrapPromise = (async () => {
       try {
-        set({ transportState: "connecting", transportDetail: "probing Railway backend" });
+        set({ transportState: "connecting", transportDetail: "probing Render backend" });
         await ApiClient.health();
-        const resp = await ApiClient.createSession(top, testbench);
+        const discovery: any = await ApiClient.getDiscovery();
+        const selectedTop = top ?? discovery?.default_top;
+        const selectedTestbench = testbench ?? discovery?.default_testbench;
+        set({ discovery: discovery ?? {} });
+        const resp = await ApiClient.createSession(selectedTop, selectedTestbench);
         bootstrapRetryDelay = 1_000;
         console.log(`[QuantumRISC] session created: ${resp.id}`);
         // connectSession will wire up WS; bootstrapTelemetry is called
@@ -253,11 +257,11 @@ export const useStudioStore = create<StudioState>((set, get) => ({
           return;
         }
         if (state === "connecting") {
-          set({ transportState: "connecting", transportDetail: detail ?? "connecting to Railway backend", isConnected: false });
+          set({ transportState: "connecting", transportDetail: detail ?? "connecting to Render backend", isConnected: false });
           return;
         }
         if (state === "reconnecting") {
-          set({ transportState: "reconnecting", transportDetail: detail ?? "reconnecting to Railway backend", isConnected: false });
+          set({ transportState: "reconnecting", transportDetail: detail ?? "reconnecting to Render backend", isConnected: false });
           return;
         }
         if (state === "backend-unavailable") {

@@ -19,8 +19,8 @@ function backendTone(status: string): "good" | "warn" | "fault" | "idle" {
 
 function backendLabel(status: string, sessionId: string | null): string {
   if ((status === "connected" || status === "running" || status === "compiled") && sessionId) return `backend · ${sessionId.substring(0, 8)}`;
-  if (status === "connecting") return "backend · connecting to Railway";
-  if (status === "reconnecting") return "backend · reconnecting to Railway";
+  if (status === "connecting") return "backend · connecting to Render";
+  if (status === "reconnecting") return "backend · reconnecting to Render";
   if (status === "backend-unavailable") return "backend · unavailable";
   if (status === "websocket-failed") return "backend · websocket failed";
   if (status === "waiting") return "backend · waiting for session";

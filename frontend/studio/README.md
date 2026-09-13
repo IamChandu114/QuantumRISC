@@ -64,7 +64,7 @@ npm install
 npm run dev
 ```
 
-The dev server proxies `/api` and `/ws` to `http://localhost:8000` (the FastAPI backend).
+The dev server proxies `/api` and `/ws` to `http://127.0.0.1:8000` (the FastAPI backend).
 
 ### Production Build
 

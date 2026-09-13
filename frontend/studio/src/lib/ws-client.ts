@@ -100,9 +100,9 @@ export class WsClient {
         return;
       }
 
-      // 4403/4404 = session not found on backend; stop reconnecting to this dead session
-      // Also stop if the HTTP upgrade was rejected (code 1006 after an error = network / CORS / 403)
-      if (this.hadError && (event.code === 1006 || event.code === 4403 || event.code === 4404)) {
+      // The backend explicitly uses 4004 when a session no longer exists.
+      // Code 1006 is also used for transient network failures, so retry it.
+      if (event.code === 4004) {
         console.warn(`[QuantumRISC] websocket: session ${this.sessionId.slice(0, 8)} rejected (${event.code}) — not retrying`);
         this.options.onStateChange?.("backend-unavailable", "session rejected by backend");
         return;

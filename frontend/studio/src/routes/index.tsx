@@ -156,12 +156,12 @@ function DashboardPage() {
               {transportState === "connected"
                 ? "Live snapshots arriving over WebSocket."
                 : transportState === "reconnecting"
-                  ? "Reconnecting to the Railway backend."
+                  ? "Reconnecting to the Render backend."
                   : transportState === "backend-unavailable"
                     ? "Backend unavailable. Retrying automatically."
                     : transportState === "websocket-failed"
                       ? "WebSocket failed. Retrying automatically."
-                      : "Connecting to the Railway backend."}
+                      : "Connecting to the Render backend."}
             </div>
           </div>
         </div>

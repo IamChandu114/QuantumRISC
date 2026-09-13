@@ -82,7 +82,7 @@ export function Toolbar() {
     transportState === "connected"
       ? "core0"
       : transportState === "connecting"
-        ? "connecting to Railway"
+        ? "connecting to Render"
         : transportState === "reconnecting"
           ? "reconnecting"
           : transportState === "backend-unavailable"
