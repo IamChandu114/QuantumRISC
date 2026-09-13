@@ -48,7 +48,7 @@ const MAX_WIDTH = 420;
 
 export function Sidebar() {
   const { top, status, playback, metrics } = useStudio();
-  const [sidebarWidth, setSidebarWidth] = useState(256);
+  const [sidebarWidth, setSidebarWidth] = useState(280);
   const [collapsed, setCollapsed] = useState(false);
 
   const asideRef = useRef<HTMLElement>(null);

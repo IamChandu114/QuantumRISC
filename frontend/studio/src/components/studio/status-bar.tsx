@@ -1,4 +1,5 @@
 import { useStudio } from "@/hooks/use-studio";
+import { asNumber, currentCycle } from "@/lib/studio/live";
 import { StatusDot } from "./panel";
 
 function pct(value: number, decimals: number): string {
@@ -31,17 +32,17 @@ function backendLabel(status: string, sessionId: string | null): string {
 
 /** Bottom instrumentation strip: always-visible core telemetry + backend status. */
 export function StatusBar() {
-  const { status, sessionId, isConnected, playback, metrics, architecture, top, transportState, transportDetail } = useStudio();
+  const { status, sessionId, isConnected, playback, metrics, architecture, pipeline, top, transportState, transportDetail } = useStudio();
 
-  const cycle = playback?.cycle || 0;
-  const pc = architecture?.pc || 0;
+  const cycle = currentCycle(playback, metrics);
+  const pc = architecture?.pc ?? pipeline?.pc ?? 0;
   const retired = metrics?.retired || 0;
   const ipc = metrics?.ipc || 0;
   const cpi = metrics?.cpi || 0;
-  const stalls = metrics?.stalls || metrics?.stallCycles || 0;
+  const stalls = metrics?.stalls ?? metrics?.stallCycles ?? 0;
   const stallRate = cycle === 0 ? 0 : stalls / cycle;
-  const hazards = metrics?.hazards || 0;
-  const forwards = metrics?.forwards || 0;
+  const hazards = asNumber(metrics?.hazards, 0);
+  const forwards = asNumber(metrics?.forwards, 0);
 
   const items: Array<[string, string]> = [
     ["PC", hex(pc)],

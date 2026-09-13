@@ -21,7 +21,7 @@ export function Panel({
 }) {
   return (
     <section
-      className={cn("glass-panel flex min-h-0 min-w-0 flex-col rounded-xl", className)}
+      className={cn("glass-panel flex min-h-0 min-w-0 flex-col rounded-lg", className)}
       aria-label={title}
     >
       <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border/70 px-4 py-2.5">
@@ -60,7 +60,7 @@ export function Metric({
   }[tone];
 
   return (
-    <div className="rounded-lg border border-border/70 bg-surface-raised/50 px-3 py-2.5">
+    <div className="rounded-md border border-border/70 bg-surface-raised/50 px-2.5 py-2">
       <div className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">{label}</div>
       <div className="mt-1 flex items-baseline gap-1">
         <span className={cn("mono-num text-xl font-semibold leading-none", toneClass)}>{value}</span>
