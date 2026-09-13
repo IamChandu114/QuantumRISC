@@ -89,6 +89,14 @@ export class ApiClient {
     return this.post(`/sessions/${id}/run`);
   }
 
+  static async pause(id: string) {
+    return this.post(`/sessions/${id}/pause`);
+  }
+
+  static async resume(id: string) {
+    return this.post(`/sessions/${id}/resume`);
+  }
+
   static async step(id: string) {
     return this.post(`/sessions/${id}/step`);
   }
