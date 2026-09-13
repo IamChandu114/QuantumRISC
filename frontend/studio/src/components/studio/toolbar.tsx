@@ -5,6 +5,7 @@ import { useStudio } from "@/hooks/use-studio";
 import { cn } from "@/lib/utils";
 import { NAV_ITEMS } from "./sidebar";
 import { StatusDot } from "./panel";
+import { currentCycle } from "@/lib/studio/live";
 import {
   CommandDialog,
   CommandEmpty,
@@ -48,7 +49,7 @@ function ToolButton({
 }
 
 export function Toolbar() {
-  const { isConnected, status, playback, metrics, compileRtl, runSimulation, stepSimulation, resetSimulation, transportState } = useStudio();
+  const { isConnected, status, playback, metrics, compileRtl, runSimulation, togglePlayback, stepSimulation, resetSimulation, transportState } = useStudio();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -64,7 +65,7 @@ export function Toolbar() {
       if (typing || paletteOpen) return;
       if (event.code === "Space") {
         event.preventDefault();
-        if (status !== "running") runSimulation();
+        if (playback?.total) togglePlayback(); else runSimulation();
       } else if (event.key === "s") {
         stepSimulation();
       } else if (event.key === "r") {
@@ -73,9 +74,10 @@ export function Toolbar() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [paletteOpen, status, runSimulation, stepSimulation, resetSimulation]);
+  }, [paletteOpen, playback?.total, runSimulation, togglePlayback, stepSimulation, resetSimulation]);
 
-  const cycle = playback?.cycle || 0;
+  const cycle = currentCycle(playback, metrics);
+  const isPlaying = playback?.mode === "playing" && playback?.paused === false;
   const ipc = metrics?.ipc || 0;
   const health = transportState === "connected" ? (status === "running" ? "good" : "idle") : transportState === "connecting" || transportState === "reconnecting" ? "warn" : transportState === "backend-unavailable" || transportState === "websocket-failed" ? "fault" : "idle";
   const transportLabel =
@@ -98,8 +100,8 @@ export function Toolbar() {
           <ServerCog className={cn("size-4", status === "compiled" ? "text-good" : "")} />
         </ToolButton>
         <div className="mx-1 h-4 w-px bg-border" aria-hidden="true" />
-        <ToolButton label={status === "running" ? "Running" : "Run simulation"} shortcut="Space" active={status === "running"} onClick={() => runSimulation()} disabled={!isConnected}>
-          {status === "running" ? <Pause className="size-4" /> : <Play className="size-4" />}
+        <ToolButton label={isPlaying ? "Pause playback" : playback?.total ? "Resume playback" : "Run simulation"} shortcut="Space" active={isPlaying} onClick={() => playback?.total ? togglePlayback() : runSimulation()} disabled={!isConnected}>
+          {isPlaying ? <Pause className="size-4" /> : <Play className="size-4" />}
         </ToolButton>
         <ToolButton label="Step one cycle" shortcut="S" onClick={() => stepSimulation()} disabled={!isConnected}>
           <SkipForward className="size-4" />

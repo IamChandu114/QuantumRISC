@@ -19,6 +19,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useStudio } from "@/hooks/use-studio";
 import { cn } from "@/lib/utils";
 import { StatusDot } from "./panel";
+import { currentCycle } from "@/lib/studio/live";
 
 export interface NavItem {
   to: string;
@@ -88,7 +89,7 @@ export function Sidebar() {
 
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const groups = [...new Set(NAV_ITEMS.map((item) => item.group))];
-  const cycle = playback?.cycle || 0;
+  const cycle = currentCycle(playback, metrics);
   const ipc = metrics?.ipc || 0;
   const isRunning = status === "running";
 

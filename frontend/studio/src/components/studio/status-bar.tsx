@@ -32,7 +32,7 @@ function backendLabel(status: string, sessionId: string | null): string {
 
 /** Bottom instrumentation strip: always-visible core telemetry + backend status. */
 export function StatusBar() {
-  const { status, sessionId, isConnected, playback, metrics, architecture, pipeline, top, transportState, transportDetail } = useStudio();
+  const { sessionId, isConnected, playback, metrics, architecture, pipeline, top, transportState, transportDetail } = useStudio();
 
   const cycle = currentCycle(playback, metrics);
   const pc = architecture?.pc ?? pipeline?.pc ?? 0;
@@ -43,6 +43,7 @@ export function StatusBar() {
   const stallRate = cycle === 0 ? 0 : stalls / cycle;
   const hazards = asNumber(metrics?.hazards, 0);
   const forwards = asNumber(metrics?.forwards, 0);
+  const isPlaying = playback?.mode === "playing" && playback?.paused === false;
 
   const items: Array<[string, string]> = [
     ["PC", hex(pc)],
@@ -58,9 +59,9 @@ export function StatusBar() {
   return (
     <footer className="z-20 flex h-7 shrink-0 items-center gap-4 overflow-x-auto border-t border-border bg-surface/80 px-3 backdrop-blur-xl">
       <div className="flex shrink-0 items-center gap-1.5">
-        <StatusDot tone={status === "running" ? "good" : "idle"} />
+        <StatusDot tone={isPlaying ? "good" : "idle"} />
         <span className="mono-num text-[10px] uppercase tracking-wider text-muted-foreground">
-          {status === "running" ? "running" : "halted"}
+          {isPlaying ? "running" : playback?.total ? "paused" : "idle"}
         </span>
       </div>
       {items.map(([label, value]) => (

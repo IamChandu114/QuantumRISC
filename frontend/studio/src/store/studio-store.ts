@@ -33,12 +33,13 @@ interface StudioState {
 
   // Actions
   initializeSession: (top?: string, testbench?: string) => Promise<void>;
-  connectSession: (sessionId: string) => void;
+  connectSession: (sessionId: string, restoring?: boolean) => void;
   disconnectSession: () => void;
   
   // API Controls
   compileRtl: () => Promise<void>;
   runSimulation: () => Promise<void>;
+  togglePlayback: () => Promise<void>;
   stepSimulation: () => Promise<void>;
   resetSimulation: () => Promise<void>;
   notify: (title: string, detail: string, level?: "info" | "warn" | "error") => void;
@@ -54,6 +55,18 @@ let bootstrapRetryDelay = 1_000;
 let telemetryBootstrapSessionId: string | null = null;
 let notificationId = 1;
 let lastNotificationKey: string | null = null;
+const SESSION_STORAGE_KEY = "quantumrisc.studio.session";
+
+function applySnapshot(set: (state: Partial<StudioState>) => void, snap: any, connected?: boolean) {
+  set({
+    status: snap.status ?? "waiting", top: snap.top ?? "", testbench: snap.testbench ?? "",
+    discovery: snap.discovery || {}, playback: snap.playback || {}, compile: snap.compile || {}, run: snap.run || {},
+    architecture: snap.architecture || {}, registers: snap.registers || [], memory: snap.memory || {}, pipeline: snap.pipeline || {},
+    hazards: snap.hazards || [], forwarding: snap.forwarding || [], metrics: snap.metrics || {}, waveforms: snap.waveforms || {},
+    vcd: snap.vcd || {}, cache: snap.cache || {}, branch: snap.branch || {}, verification: snap.verification || {}, fpga: snap.fpga || {},
+    ...(connected === undefined ? {} : { isConnected: connected }),
+  });
+}
 
 function scheduleBootstrapRetry() {
   if (bootstrapRetryTimer) clearTimeout(bootstrapRetryTimer);
@@ -183,6 +196,15 @@ export const useStudioStore = create<StudioState>((set, get) => ({
         const selectedTop = top ?? discovery?.default_top;
         const selectedTestbench = testbench ?? discovery?.default_testbench;
         set({ discovery: discovery ?? {} });
+        const persistedId = typeof window === "undefined" ? null : window.localStorage.getItem(SESSION_STORAGE_KEY);
+        if (persistedId) {
+          try {
+            const snapshot: any = await ApiClient.getSession(persistedId);
+            applySnapshot(set, snapshot);
+            get().connectSession(persistedId, true);
+            return;
+          } catch { window.localStorage.removeItem(SESSION_STORAGE_KEY); }
+        }
         const resp = await ApiClient.createSession(selectedTop, selectedTestbench);
         bootstrapRetryDelay = 1_000;
         console.log(`[QuantumRISC] session created: ${resp.id}`);
@@ -207,7 +229,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
     return bootstrapPromise;
   },
 
-  connectSession: (sessionId: string) => {
+  connectSession: (sessionId: string, restoring = false) => {
     if (activeWsClient) {
       activeWsClient.disconnect();
       activeWsClient = null;
@@ -217,7 +239,8 @@ export const useStudioStore = create<StudioState>((set, get) => ({
     lastNotificationKey = null;
     notificationId = 1;
     // Reset telemetry guard for this new session so compile+run will fire
-    telemetryBootstrapSessionId = null;
+    if (!restoring) telemetryBootstrapSessionId = null;
+    if (typeof window !== "undefined") window.localStorage.setItem(SESSION_STORAGE_KEY, sessionId);
 
     set({
       sessionId,
@@ -225,18 +248,8 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       transportState: "connecting",
       transportDetail: `session ${sessionId.slice(0, 8)} initializing`,
       isConnected: false,
-      // Clear stale data from previous session
-      compile: {},
-      run: {},
-      metrics: {},
-      waveforms: {},
-      registers: [],
-      pipeline: {},
-      hazards: [],
-      forwarding: [],
-      playback: {},
-      architecture: {},
-      memory: {},
+      // Clear stale data only for a genuinely new session.
+      ...(restoring ? {} : { compile: {}, run: {}, metrics: {}, waveforms: {}, registers: [], pipeline: {}, hazards: [], forwarding: [], playback: {}, architecture: {}, memory: {} }),
     });
 
     console.log(`[QuantumRISC] websocket connecting: session ${sessionId.slice(0, 8)}`);
@@ -250,7 +263,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
 
           // Fire compile+run ONCE per session, only after WS is open so we
           // don't miss the state.snapshot broadcast that follows.
-          if (!telemetryFired) {
+          if (!telemetryFired && !get().run?.ok) {
             telemetryFired = true;
             void bootstrapTelemetry(sessionId);
           }
@@ -292,31 +305,8 @@ export const useStudioStore = create<StudioState>((set, get) => ({
         }
         const { payload } = msg;
         console.log(`[QuantumRISC] snapshot session: ${sessionId.slice(0, 8)} — status=${payload.status} cycles=${payload.metrics?.cycles}`);
-        set({
-          status: payload.status,
-          top: payload.top,
-          testbench: payload.testbench,
-          discovery: payload.discovery || {},
-          playback: payload.playback || {},
-          compile: payload.compile || {},
-          run: payload.run || {},
-          architecture: payload.architecture || {},
-          registers: payload.registers || [],
-          memory: payload.memory || {},
-          pipeline: payload.pipeline || {},
-          hazards: payload.hazards || [],
-          forwarding: payload.forwarding || [],
-          metrics: payload.metrics || {},
-          waveforms: payload.waveforms || {},
-          vcd: payload.vcd || {},
-          cache: payload.cache || {},
-          branch: payload.branch || {},
-          verification: payload.verification || {},
-          fpga: payload.fpga || {},
-          isConnected: true,
-          transportState: "connected",
-          transportDetail: `session ${sessionId.slice(0, 8)} live`,
-        });
+        applySnapshot(set, payload, true);
+        set({ transportState: "connected", transportDetail: `session ${sessionId.slice(0, 8)} live` });
       } else if (msg.type === "session.created") {
         set({ isConnected: true, transportState: "connected", transportDetail: `session ${sessionId.slice(0, 8)} created` });
       }
@@ -338,6 +328,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       clearTimeout(bootstrapRetryTimer);
       bootstrapRetryTimer = null;
     }
+    if (typeof window !== "undefined") window.localStorage.removeItem(SESSION_STORAGE_KEY);
     set({ isConnected: false, sessionId: null, status: "waiting", transportState: "closed", transportDetail: "session closed" });
   },
 
@@ -359,34 +350,34 @@ export const useStudioStore = create<StudioState>((set, get) => ({
     // Pull snapshot after run so metrics appear immediately
     try {
       const snap: any = await ApiClient.getSnapshot(id);
-      if (snap) {
-        set({
-          status: snap.status ?? "running",
-          compile: snap.compile || {},
-          run: snap.run || {},
-          architecture: snap.architecture || {},
-          registers: snap.registers || [],
-          memory: snap.memory || {},
-          pipeline: snap.pipeline || {},
-          hazards: snap.hazards || [],
-          forwarding: snap.forwarding || [],
-          metrics: snap.metrics || {},
-          waveforms: snap.waveforms || {},
-        });
-      }
+      if (snap) applySnapshot(set, snap, true);
     } catch { /* WS will deliver */ }
+  },
+
+  togglePlayback: async () => {
+    const id = get().sessionId;
+    if (!id) return;
+    const result: any = get().playback?.paused ? await ApiClient.resume(id) : await ApiClient.pause(id);
+    if (result) applySnapshot(set, result, true);
   },
 
   stepSimulation: async () => {
     const id = get().sessionId;
-    if (id) await ApiClient.step(id);
+    if (!id) return;
+    // Stop the backend playback loop before requesting one deterministic step.
+    // This prevents a racing playback tick from moving the cursor between UI actions.
+    const paused: any = await ApiClient.pause(id);
+    if (paused) applySnapshot(set, paused, true);
+    const snap: any = await ApiClient.step(id);
+    if (snap) applySnapshot(set, snap, true);
   },
 
   resetSimulation: async () => {
     const id = get().sessionId;
     if (!id) return;
     console.log(`[QuantumRISC] reset session: ${id.slice(0, 8)}`);
-    await ApiClient.reset(id);
+    const snap: any = await ApiClient.reset(id);
+    if (snap) applySnapshot(set, snap, true);
   },
 
   notify: (title: string, detail: string, level: "info" | "warn" | "error" = "info") => {
