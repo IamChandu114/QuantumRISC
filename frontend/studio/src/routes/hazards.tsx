@@ -11,7 +11,7 @@ import {
   sortRecent,
   timelineSamples,
 } from "@/lib/studio/live";
-import { REG_NAMES } from "@/lib/sim/isa";
+import { RV32I_REGISTER_NAMES as REG_NAMES } from "@/lib/quantumrisc/registers";
 
 export const Route = createFileRoute("/hazards")({
   component: HazardsPage,

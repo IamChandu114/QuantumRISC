@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useStudio } from "@/hooks/use-studio";
 import { Chip, Panel } from "@/components/studio/panel";
-import { REG_NAMES } from "@/lib/sim/isa";
+import { RV32I_REGISTER_NAMES as REG_NAMES } from "@/lib/quantumrisc/registers";
 import {
   asNumber,
   bin,
